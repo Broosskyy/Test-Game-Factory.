@@ -112,7 +112,7 @@ func _build_interface() -> void:
 
 func _build_topbar() -> void:
 	var topbar := Control.new()
-	_anchor(topbar, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 78.0)
+	_anchor(topbar, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 94.0)
 	topbar.z_index = 120
 	add_child(topbar)
 
@@ -230,7 +230,7 @@ func _build_topbar() -> void:
 
 func _build_stage() -> void:
 	stage = Control.new()
-	_anchor(stage, 0.0, 0.0, 1.0, 1.0, 0.0, 78.0, 0.0, -92.0)
+	_anchor(stage, 0.0, 0.0, 1.0, 1.0, 0.0, 94.0, 0.0, -118.0)
 	stage.clip_contents = true
 	add_child(stage)
 
@@ -246,23 +246,28 @@ func _build_stage() -> void:
 	horizon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(horizon)
 
-	_add_world_texture("Castle", -0.08, 0.025, 0.55, 0.47, 1)
-	_add_world_texture("Float", 0.49, 0.015, 1.15, 0.43, 1)
-	_add_world_texture("Ruin", 0.54, 0.17, 1.03, 0.57, 2)
-	_add_world_texture("Ruins", -0.01, 0.28, 1.01, 0.69, 2)
-	_add_world_texture("Platform", -0.28, 0.44, 1.28, 0.87, 3)
-	_add_world_texture("Foreground", -0.10, 0.66, 1.10, 1.06, 7)
+	# Combat Master stage: restrained far layers + one dominant arena.
+	# Avoid stacking the modular kit as visible horizontal strips.
+	_add_world_texture("Castle", -0.18, 0.015, 0.46, 0.355, 1)
+	_add_world_texture("Float", 0.57, 0.035, 1.12, 0.345, 1)
+	_add_world_texture("Platform", -0.10, 0.16, 1.10, 0.785, 3)
+	_add_world_texture("Foreground", -0.04, 0.625, 1.04, 0.845, 7)
+
+	_set_world_alpha("Castle", 0.70)
+	_set_world_alpha("Float", 0.62)
+	_set_world_alpha("Platform", 1.0)
+	_set_world_alpha("Foreground", 0.56)
 
 	var depth_tint := ColorRect.new()
 	_anchor(depth_tint, 0.0, 0.0, 1.0, 1.0)
-	depth_tint.color = Color(0.015, 0.055, 0.075, 0.08)
+	depth_tint.color = Color(0.015, 0.055, 0.075, 0.045)
 	depth_tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	depth_tint.z_index = 5
 	stage.add_child(depth_tint)
 
 	# Compact world progression pill from the combat master.
 	var world_pill := PanelContainer.new()
-	_anchor(world_pill, 0.25, 0.018, 0.75, 0.080)
+	_anchor(world_pill, 0.235, 0.018, 0.765, 0.078)
 	world_pill.z_index = 32
 	world_pill.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.08, 0.13, 0.94), Color("#35678c"), 24))
 	stage.add_child(world_pill)
@@ -291,7 +296,7 @@ func _build_stage() -> void:
 	world_row.add_child(progress)
 
 	var streak := PanelContainer.new()
-	_anchor(streak, 0.018, 0.105, 0.235, 0.178)
+	_anchor(streak, 0.018, 0.100, 0.245, 0.178)
 	streak.z_index = 31
 	streak.add_theme_stylebox_override("panel", _panel_style(Color(0.05, 0.08, 0.10, 0.90), Color("#5d4c2b"), 12))
 	stage.add_child(streak)
@@ -306,7 +311,7 @@ func _build_stage() -> void:
 
 	hero_holder = Control.new()
 	hero_holder.name = "HeroHolder"
-	_anchor(hero_holder, 0.015, 0.455, 0.35, 0.795)
+	_anchor(hero_holder, -0.005, 0.445, 0.405, 0.795)
 	hero_holder.z_index = 10
 	hero_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(hero_holder)
@@ -317,7 +322,7 @@ func _build_stage() -> void:
 
 	enemy_holder = Control.new()
 	enemy_holder.name = "EnemyHolder"
-	_anchor(enemy_holder, 0.43, 0.275, 1.01, 0.805)
+	_anchor(enemy_holder, 0.405, 0.255, 1.025, 0.795)
 	enemy_holder.z_index = 9
 	enemy_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(enemy_holder)
@@ -372,7 +377,7 @@ func _build_stage() -> void:
 
 func _build_enemy_hud() -> void:
 	var hud := PanelContainer.new()
-	_anchor(hud, 0.295, 0.095, 0.705, 0.205)
+	_anchor(hud, 0.285, 0.092, 0.715, 0.202)
 	hud.z_index = 42
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.065, 0.105, 0.96), Color("#4c7694"), 15))
@@ -472,7 +477,7 @@ func _build_damage_number() -> void:
 	damage_label.add_theme_constant_override("shadow_offset_x", 4)
 	damage_label.add_theme_constant_override("shadow_offset_y", 4)
 	damage_label.add_theme_font_size_override("font_size", 70)
-	_anchor(damage_label, 0.70, 0.32, 0.99, 0.49)
+	_anchor(damage_label, 0.685, 0.305, 0.985, 0.485)
 	damage_label.rotation = deg_to_rad(-5.0)
 	damage_label.z_index = 47
 	damage_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -488,7 +493,7 @@ func _build_combat_bottom_hud() -> void:
 	stage.add_child(bottom)
 
 	var vitals := HBoxContainer.new()
-	_anchor(vitals, 0.025, 0.755, 0.87, 0.825)
+	_anchor(vitals, 0.025, 0.725, 0.865, 0.795)
 	vitals.add_theme_constant_override("separation", 8)
 	vitals.z_index = 28
 	stage.add_child(vitals)
@@ -580,14 +585,14 @@ func _build_combat_bottom_hud() -> void:
 	auto_button.add_theme_color_override("font_color", Color.WHITE)
 	auto_button.add_theme_stylebox_override("normal", _panel_style(Color("#071629"), Color("#168cff"), 36))
 	auto_button.add_theme_stylebox_override("pressed", _panel_style(Color("#0b2948"), Color("#67cbff"), 36))
-	_anchor(auto_button, 1.0, 0.758, 1.0, 0.758, -94.0, 0.0, -14.0, 80.0)
+	_anchor(auto_button, 1.0, 0.728, 1.0, 0.728, -100.0, 0.0, -12.0, 88.0)
 	auto_button.z_index = 29
 	auto_button.pressed.connect(_toggle_auto)
 	stage.add_child(auto_button)
 	_decorate_icon_button(auto_button, "ui_v4/combat_core/auto.png", "AUTO", false)
 
 	var skills := HBoxContainer.new()
-	_anchor(skills, 0.045, 0.846, 0.955, 0.982)
+	_anchor(skills, 0.035, 0.812, 0.965, 0.965)
 	skills.alignment = BoxContainer.ALIGNMENT_CENTER
 	skills.add_theme_constant_override("separation", 16)
 	skills.z_index = 31
@@ -602,7 +607,7 @@ func _build_combat_bottom_hud() -> void:
 	for data in skill_data:
 		var button := Button.new()
 		button.text = ""
-		button.custom_minimum_size = Vector2(104, 104)
+		button.custom_minimum_size = Vector2(118, 118)
 		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		button.focus_mode = Control.FOCUS_NONE
 		button.disabled = bool(data[3])
@@ -647,7 +652,7 @@ func _build_result_overlay() -> void:
 	content.add_child(result_title)
 
 	var subtitle := Label.new()
-	subtitle.text = "Combat Master Convergence 02"
+	subtitle.text = "Combat Master Convergence 05"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.add_theme_color_override("font_color", Color("#9eafbf"))
 	subtitle.add_theme_font_size_override("font_size", 14)
@@ -666,7 +671,7 @@ func _build_result_overlay() -> void:
 
 func _build_bottom_nav() -> void:
 	var nav := PanelContainer.new()
-	_anchor(nav, 0.0, 1.0, 1.0, 1.0, 0.0, -92.0, 0.0, 0.0)
+	_anchor(nav, 0.0, 1.0, 1.0, 1.0, 0.0, -118.0, 0.0, 0.0)
 	nav.add_theme_stylebox_override("panel", _panel_style(Color("#06101a"), Color("#244c68"), 0))
 	add_child(nav)
 
@@ -699,6 +704,12 @@ func _add_world_texture(node_name: String, left: float, top: float, right: float
 	stage.add_child(texture_rect)
 
 
+func _set_world_alpha(node_name: String, alpha: float) -> void:
+	var node := stage.get_node_or_null(node_name) as TextureRect
+	if node != null:
+		node.modulate.a = alpha
+
+
 func _add_shadow(parent: Control, left: float, top: float, right: float, bottom: float) -> void:
 	var shadow := ColorRect.new()
 	_anchor(shadow, left, top, right, bottom)
@@ -719,8 +730,6 @@ func _make_texture_rect() -> TextureRect:
 func _load_production_assets() -> void:
 	_set_texture_by_name("Castle", WORLD_FILES["castle"])
 	_set_texture_by_name("Float", WORLD_FILES["float"])
-	_set_texture_by_name("Ruin", WORLD_FILES["ruin"])
-	_set_texture_by_name("Ruins", WORLD_FILES["ruins"])
 	_set_texture_by_name("Platform", WORLD_FILES["platform"])
 	_set_texture_by_name("Foreground", WORLD_FILES["foreground"])
 	var top_portrait := find_child("TopHeroPortrait", true, false) as TextureRect
