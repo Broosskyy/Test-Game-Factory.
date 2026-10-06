@@ -1029,8 +1029,8 @@ func _show_hit_fx() -> void:
 
 
 func _show_damage() -> void:
-	var value := DISPLAY_DAMAGE[damage_index % DISPLAY_DAMAGE.size()]
-	var critical := damage_index % 4 == 2
+	var value: int = int(DISPLAY_DAMAGE[damage_index % DISPLAY_DAMAGE.size()])
+	var critical: bool = damage_index % 4 == 2
 	damage_index += 1
 
 	damage_label.text = ("CRIT!\n" if critical else "") + _format_thousands(value)
