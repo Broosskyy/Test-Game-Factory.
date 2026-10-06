@@ -432,11 +432,11 @@ func _build_enemy_hud() -> void:
 		chip.add_child(chip_text)
 		status.add_child(chip)
 
-	var trait := Label.new()
-	trait.text = "ERDPANZER"
-	trait.add_theme_color_override("font_color", Color("#d4e1ed"))
-	trait.add_theme_font_size_override("font_size", 11)
-	status.add_child(trait)
+	var trait_label := Label.new()
+	trait_label.text = "ERDPANZER"
+	trait_label.add_theme_color_override("font_color", Color("#d4e1ed"))
+	trait_label.add_theme_font_size_override("font_size", 11)
+	status.add_child(trait_label)
 
 func _build_damage_number() -> void:
 	damage_label = Label.new()
