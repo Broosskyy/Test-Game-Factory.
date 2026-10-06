@@ -1,0 +1,23 @@
+; Engine configuration file.
+; Edit through the Godot editor when possible.
+;
+; Game Factory baseline: Godot 4.7.2 stable
+
+config_version=5
+
+[application]
+config/name="Test Game Factory"
+run/main_scene="res://game/main.tscn"
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="canvas_items"
+
+[rendering]
+textures/vram_compression/import_etc2_astc=true
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.025, 0.03, 0.04, 1)

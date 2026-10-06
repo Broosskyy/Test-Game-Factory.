@@ -1,0 +1,82 @@
+name: Godot Builds
+
+on:
+  push:
+    branches:
+      - main
+      - feature/game-factory-foundation
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: "4.7.2"
+
+jobs:
+  build:
+    name: Export Android + Web
+    runs-on: ubuntu-24.04
+    container:
+      image: barichello/godot-ci:4.7.2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install CI runtime dependencies
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends fontconfig
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Prepare Godot export environment
+        shell: bash
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates
+          cp -R "/root/.local/share/godot/export_templates/${GODOT_VERSION}.stable" ~/.local/share/godot/export_templates/
+          mkdir -p ~/.config/godot
+          cp /root/.config/godot/editor_settings-4.7.tres ~/.config/godot/editor_settings-4.7.tres
+          ls -lah ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          cat ~/.config/godot/editor_settings-4.7.tres
+
+      - name: Ensure Android SDK 35 tools
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "build-tools;35.0.1" "platforms;android-35"
+
+      - name: Import project
+        shell: bash
+        run: godot --headless --verbose --path . --import
+
+      - name: Validate project
+        shell: bash
+        run: godot --headless --verbose --path . --editor --quit
+
+      - name: Export Web
+        shell: bash
+        run: |
+          mkdir -p build/web
+          godot --headless --verbose --path . --export-release "Web" build/web/index.html
+
+      - name: Export Android debug APK
+        shell: bash
+        run: |
+          mkdir -p build/android
+          godot --headless --verbose --path . --export-debug "Android Debug" build/android/TestGameFactory.apk
+
+      - name: Upload Web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-game-factory-web
+          path: build/web
+          if-no-files-found: error
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-game-factory-android
+          path: build/android/TestGameFactory.apk
+          if-no-files-found: error
