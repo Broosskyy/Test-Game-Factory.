@@ -10,3 +10,6 @@
 Thumbs.db
 .vscode/
 .idea/
+
+# Synced from pinned REALM ALLIANCE production source
+/assets/realm_alliance/
