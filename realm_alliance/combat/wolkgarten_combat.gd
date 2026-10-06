@@ -3,6 +3,7 @@ extends Control
 const PORTRAIT_REFERENCE := Vector2i(720, 1280)
 const LANDSCAPE_REFERENCE := Vector2i(960, 540)
 const ASSET_ROOT := "res://assets/realm_alliance/production/"
+const V2_ASSET_ROOT := "res://assets/realm_alliance/v2/"
 
 const HERO_FILES := {
 	"idle": "hero/realmwaechter/idle.png",
@@ -55,6 +56,7 @@ var result_title: Label
 var attack_hint: Label
 var fullscreen_button: Button
 var slash_fx: TextureRect
+var impact_fx: TextureRect
 var momentum_bar: ProgressBar
 var fury_bar: ProgressBar
 var auto_button: Button
@@ -172,9 +174,9 @@ func _build_topbar() -> void:
 	topbar.add_child(resources)
 
 	var resource_data := [
-		["G", "128.4K", Color("#f4b62d")],
-		["E", "2.580", Color("#a341ff")],
-		["C", "347", Color("#2bd5ff")]
+		["ui_v4/navigation/currency.png", "128.4K", Color("#f4b62d")],
+		["ui_v4/inventory_consumables/purple_orb.png", "2.580", Color("#a341ff")],
+		["ui_v4/inventory_consumables/blue_crystal.png", "347", Color("#2bd5ff")]
 	]
 	for entry in resource_data:
 		var resource := PanelContainer.new()
@@ -187,13 +189,12 @@ func _build_topbar() -> void:
 		row.add_theme_constant_override("separation", 7)
 		resource.add_child(row)
 
-		var icon := Label.new()
-		icon.text = entry[0]
+		var icon := TextureRect.new()
+		icon.texture = _load_v2_texture(entry[0])
 		icon.custom_minimum_size = Vector2(26, 26)
-		icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		icon.add_theme_color_override("font_color", entry[2])
-		icon.add_theme_font_size_override("font_size", 18)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(icon)
 
 		var amount := Label.new()
@@ -329,10 +330,16 @@ func _build_stage() -> void:
 	_add_shadow(enemy_holder, 0.08, 0.91, 0.92, 0.98)
 
 	slash_fx = _make_texture_rect()
-	_anchor(slash_fx, 0.26, 0.48, 0.71, 0.68)
+	_anchor(slash_fx, 0.25, 0.44, 0.72, 0.70)
 	slash_fx.z_index = 15
 	slash_fx.visible = false
 	stage.add_child(slash_fx)
+
+	impact_fx = _make_texture_rect()
+	_anchor(impact_fx, 0.56, 0.41, 0.96, 0.70)
+	impact_fx.z_index = 16
+	impact_fx.visible = false
+	stage.add_child(impact_fx)
 
 	_build_enemy_hud()
 	_build_damage_number()
@@ -432,17 +439,22 @@ func _build_enemy_hud() -> void:
 	status.alignment = BoxContainer.ALIGNMENT_CENTER
 	status.add_theme_constant_override("separation", 6)
 	box.add_child(status)
-	for entry in [["F", "#ff772b"], ["S", "#53c7ff"], ["A", "#bcc5d0"]]:
+	var status_icons := [
+		["ui_v4/combat_status/burn.png", "#ff772b"],
+		["ui_v4/combat_status/defense_up.png", "#53c7ff"],
+		["ui_v4/combat_status/attack_up.png", "#bcc5d0"]
+	]
+	for entry in status_icons:
 		var chip := PanelContainer.new()
-		chip.custom_minimum_size = Vector2(42, 25)
+		chip.custom_minimum_size = Vector2(34, 30)
 		chip.add_theme_stylebox_override("panel", _panel_style(Color("#07121d"), Color(entry[1]), 7))
-		var chip_text := Label.new()
-		chip_text.text = entry[0]
-		chip_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		chip_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		chip_text.add_theme_color_override("font_color", Color(entry[1]))
-		chip_text.add_theme_font_size_override("font_size", 12)
-		chip.add_child(chip_text)
+
+		var icon := TextureRect.new()
+		icon.texture = _load_v2_texture(entry[0])
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.add_child(icon)
 		status.add_child(chip)
 
 	var trait_label := Label.new()
@@ -562,7 +574,7 @@ func _build_combat_bottom_hud() -> void:
 	vitals.add_child(fury_card)
 
 	auto_button = Button.new()
-	auto_button.text = "X\nAUTO"
+	auto_button.text = ""
 	auto_button.focus_mode = Control.FOCUS_NONE
 	auto_button.add_theme_font_size_override("font_size", 13)
 	auto_button.add_theme_color_override("font_color", Color.WHITE)
@@ -572,6 +584,7 @@ func _build_combat_bottom_hud() -> void:
 	auto_button.z_index = 29
 	auto_button.pressed.connect(_toggle_auto)
 	stage.add_child(auto_button)
+	_decorate_icon_button(auto_button, "ui_v4/combat_core/auto.png", "AUTO", false)
 
 	var skills := HBoxContainer.new()
 	_anchor(skills, 0.045, 0.846, 0.955, 0.982)
@@ -581,27 +594,25 @@ func _build_combat_bottom_hud() -> void:
 	stage.add_child(skills)
 
 	var skill_data := [
-		["///\n2.5", "#2e83ff", false],
-		["<>\n6.8", "#8f43e8", true],
-		["LOCK\nLV.50", "#69717c", true],
-		["XX\n18.4", "#ff7d21", true]
+		["ui_v4/combat_core/attack.png", "2.5", "#2e83ff", false],
+		["ui_v4/combat_core/target.png", "6.8", "#8f43e8", true],
+		["ui_v4/combat_core/heavy_attack.png", "LV.50", "#69717c", true],
+		["ui_v4/combat_core/heavy_attack.png", "18.4", "#ff7d21", true]
 	]
 	for data in skill_data:
 		var button := Button.new()
-		button.text = data[0]
+		button.text = ""
 		button.custom_minimum_size = Vector2(104, 104)
 		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		button.focus_mode = Control.FOCUS_NONE
-		button.disabled = bool(data[2])
-		button.add_theme_font_size_override("font_size", 14)
-		button.add_theme_color_override("font_color", Color.WHITE)
-		button.add_theme_color_override("font_disabled_color", Color("#9ba3ac"))
-		button.add_theme_stylebox_override("normal", _panel_style(Color("#0b1a29"), Color(data[1]), 52))
+		button.disabled = bool(data[3])
+		button.add_theme_stylebox_override("normal", _panel_style(Color("#0b1a29"), Color(data[2]), 52))
 		button.add_theme_stylebox_override("pressed", _panel_style(Color("#123652"), Color("#a8e3ff"), 52))
-		button.add_theme_stylebox_override("disabled", _panel_style(Color("#111821"), Color(data[1]), 52))
-		if not bool(data[2]):
+		button.add_theme_stylebox_override("disabled", _panel_style(Color("#111821"), Color(data[2]), 52))
+		if not bool(data[3]):
 			button.pressed.connect(_attack)
 		skills.add_child(button)
+		_decorate_icon_button(button, data[0], data[1], bool(data[3]))
 
 func _build_result_overlay() -> void:
 	result_overlay = ColorRect.new()
@@ -665,21 +676,20 @@ func _build_bottom_nav() -> void:
 	nav.add_child(row)
 
 	var entries := [
-		["X", "KAMPF"],
-		["MAP", "ABENTEUER"],
-		["PAW", "WESEN"],
-		["BOX", "BEUTE"],
-		["GRID", "MEHR"]
+		["ui_v4/navigation/combat.png", "KAMPF"],
+		["ui_v4/navigation/quest.png", "ABENTEUER"],
+		["ui_v4/navigation/monster.png", "WESEN"],
+		["ui_v4/navigation/inventory.png", "BEUTE"],
+		["ui_v4/navigation/menu.png", "MEHR"]
 	]
 	for entry in entries:
 		var button := Button.new()
-		button.text = "%s\n%s" % [entry[0], entry[1]]
+		button.text = ""
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.focus_mode = Control.FOCUS_NONE
-		button.add_theme_font_size_override("font_size", 13)
-		button.add_theme_color_override("font_color", Color("#eadcff") if entry[1] == "KAMPF" else Color("#9aaac0"))
 		button.add_theme_stylebox_override("normal", _panel_style(Color("#091522") if entry[1] != "KAMPF" else Color("#33135a"), Color("#173448") if entry[1] != "KAMPF" else Color("#a23cff"), 0))
 		row.add_child(button)
+		_decorate_nav_button(button, entry[0], entry[1], entry[1] == "KAMPF")
 
 func _add_world_texture(node_name: String, left: float, top: float, right: float, bottom: float, layer: int) -> void:
 	var texture_rect := _make_texture_rect()
@@ -717,7 +727,9 @@ func _load_production_assets() -> void:
 	if top_portrait != null:
 		top_portrait.texture = _load_texture(HERO_FILES["idle"])
 	if slash_fx != null:
-		slash_fx.texture = _load_texture("weapons/realmblade/vfx-basic.png")
+		slash_fx.texture = _load_texture("weapons/realmblade/vfx-crystal.png")
+	if impact_fx != null:
+		impact_fx.texture = _load_v2_texture("v190/vfx/combat_impacts/ice_impact_strong.png")
 	_set_hero_state("idle")
 	_set_enemy_state("idle")
 
@@ -765,13 +777,28 @@ func _attack() -> void:
 	_set_enemy_state("hit")
 	if slash_fx != null:
 		slash_fx.visible = true
-		slash_fx.modulate = Color(1.15, 1.0, 0.78, 1.0)
+		slash_fx.modulate = Color(1.1, 1.15, 1.35, 1.0)
 		var fx_tween := create_tween()
 		fx_tween.tween_property(slash_fx, "modulate:a", 0.0, 0.24)
 		fx_tween.finished.connect(func():
 			if is_instance_valid(slash_fx):
 				slash_fx.visible = false
 				slash_fx.modulate = Color.WHITE
+		)
+
+	if impact_fx != null:
+		impact_fx.visible = true
+		impact_fx.scale = Vector2(0.72, 0.72)
+		impact_fx.modulate = Color.WHITE
+		var impact_tween := create_tween()
+		impact_tween.set_parallel(true)
+		impact_tween.tween_property(impact_fx, "scale", Vector2.ONE, 0.18)
+		impact_tween.tween_property(impact_fx, "modulate:a", 0.0, 0.28)
+		impact_tween.finished.connect(func():
+			if is_instance_valid(impact_fx):
+				impact_fx.visible = false
+				impact_fx.scale = Vector2.ONE
+				impact_fx.modulate = Color.WHITE
 		)
 	_show_damage(DISPLAY_DAMAGE[damage_index % DISPLAY_DAMAGE.size()])
 	damage_index += 1
@@ -862,6 +889,10 @@ func _restart() -> void:
 	if slash_fx != null:
 		slash_fx.visible = false
 		slash_fx.modulate = Color.WHITE
+	if impact_fx != null:
+		impact_fx.visible = false
+		impact_fx.scale = Vector2.ONE
+		impact_fx.modulate = Color.WHITE
 	_set_hero_state("idle")
 	_set_enemy_state("idle")
 	_refresh_hud()
@@ -870,7 +901,9 @@ func _restart() -> void:
 func _toggle_auto() -> void:
 	auto_enabled = not auto_enabled
 	if auto_button != null:
-		auto_button.text = ("ON" if auto_enabled else "X") + "\nAUTO"
+		var caption := auto_button.get_node_or_null("Caption") as Label
+		if caption != null:
+			caption.text = "AUTO ON" if auto_enabled else "AUTO"
 
 
 func _format_thousands(value: int) -> String:
@@ -883,6 +916,61 @@ func _format_thousands(value: int) -> String:
 		out = raw[i] + out
 		count += 1
 	return out
+
+
+func _load_v2_texture(relative_path: String) -> Texture2D:
+	var path := V2_ASSET_ROOT + relative_path
+	if not ResourceLoader.exists(path):
+		push_error("Missing REALM ALLIANCE V2 asset: " + path)
+		return null
+	return load(path) as Texture2D
+
+
+func _decorate_icon_button(button: Button, relative_path: String, caption_text: String, dimmed: bool) -> void:
+	var icon := TextureRect.new()
+	icon.name = "Icon"
+	icon.texture = _load_v2_texture(relative_path)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.modulate = Color(0.62, 0.66, 0.72, 0.85) if dimmed else Color.WHITE
+	_anchor(icon, 0.18, 0.08, 0.82, 0.72)
+	button.add_child(icon)
+
+	var caption := Label.new()
+	caption.name = "Caption"
+	caption.text = caption_text
+	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	caption.add_theme_color_override("font_color", Color("#8d98a8") if dimmed else Color.WHITE)
+	caption.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+	caption.add_theme_constant_override("shadow_offset_x", 2)
+	caption.add_theme_constant_override("shadow_offset_y", 2)
+	caption.add_theme_font_size_override("font_size", 12)
+	_anchor(caption, 0.0, 0.68, 1.0, 0.98)
+	button.add_child(caption)
+
+
+func _decorate_nav_button(button: Button, relative_path: String, caption_text: String, active: bool) -> void:
+	var icon := TextureRect.new()
+	icon.texture = _load_v2_texture(relative_path)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.modulate = Color.WHITE if active else Color(0.70, 0.76, 0.86, 0.86)
+	_anchor(icon, 0.32, 0.08, 0.68, 0.58)
+	button.add_child(icon)
+
+	var caption := Label.new()
+	caption.text = caption_text
+	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	caption.add_theme_color_override("font_color", Color("#f1e6ff") if active else Color("#9aaac0"))
+	caption.add_theme_font_size_override("font_size", 12)
+	_anchor(caption, 0.0, 0.58, 1.0, 0.96)
+	button.add_child(caption)
 
 
 func _toggle_fullscreen() -> void:
