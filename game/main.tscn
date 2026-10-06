@@ -1,39 +1,112 @@
-[gd_scene format=3]
+[gd_scene load_steps=3 format=3]
 
-[node name="Main" type="Node2D"]
+[ext_resource type="Script" path="res://game/responsive_foundation.gd" id="1_main"]
+[ext_resource type="Script" path="res://game_factory/ui/safe_area_container.gd" id="2_safe"]
 
-[node name="UI" type="CanvasLayer" parent="."]
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
 
-[node name="Background" type="ColorRect" parent="UI"]
-offset_right = 1280.0
-offset_bottom = 720.0
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 color = Color(0.025, 0.03, 0.04, 1)
 mouse_filter = 2
 
-[node name="Center" type="CenterContainer" parent="UI"]
-offset_right = 1280.0
-offset_bottom = 720.0
-mouse_filter = 2
+[node name="SafeArea" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_safe")
 
-[node name="Content" type="VBoxContainer" parent="UI/Center"]
+[node name="Layout" type="VBoxContainer" parent="SafeArea"]
 layout_mode = 2
-theme_override_constants/separation = 14
+theme_override_constants/separation = 24
 
-[node name="Title" type="Label" parent="UI/Center/Content"]
+[node name="TopBar" type="HBoxContainer" parent="SafeArea/Layout"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 36
+
+[node name="FoundationBadge" type="Label" parent="SafeArea/Layout/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.62, 0.66, 0.72, 1)
+theme_override_font_sizes/font_size = 18
+text = "GAME FACTORY · GODOT 4.7.2"
+
+[node name="OrientationBadge" type="Label" parent="SafeArea/Layout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.77, 0.8, 0.85, 1)
+theme_override_font_sizes/font_size = 18
+text = "PORTRAIT"
+horizontal_alignment = 2
+
+[node name="Center" type="CenterContainer" parent="SafeArea/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Content" type="VBoxContainer" parent="SafeArea/Layout/Center"]
+custom_minimum_size = Vector2(560, 0)
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Eyebrow" type="Label" parent="SafeArea/Layout/Center/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.56, 0.6, 0.67, 1)
+theme_override_font_sizes/font_size = 18
+text = "FOUNDATION / RESPONSIVE"
+horizontal_alignment = 1
+
+[node name="Title" type="Label" parent="SafeArea/Layout/Center/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 52
 text = "GAME FACTORY"
 horizontal_alignment = 1
 
-[node name="Status" type="Label" parent="UI/Center/Content"]
+[node name="Status" type="Label" parent="SafeArea/Layout/Center/Content"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "Foundation ready"
+theme_override_colors/font_color = Color(0.82, 0.84, 0.88, 1)
+theme_override_font_sizes/font_size = 24
+text = "Responsive viewport ready"
 horizontal_alignment = 1
 
-[node name="Next" type="Label" parent="UI/Center/Content"]
+[node name="Rule" type="HSeparator" parent="SafeArea/Layout/Center/Content"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.65, 0.68, 0.72, 1)
-theme_override_font_sizes/font_size = 16
-text = "Next: Hero → Movement → Camera"
+
+[node name="Next" type="Label" parent="SafeArea/Layout/Center/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.66, 0.72, 1)
+theme_override_font_sizes/font_size = 20
+text = "Next · Hero → Movement → Collision → Camera → Touch"
 horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="BottomBar" type="HBoxContainer" parent="SafeArea/Layout"]
+layout_mode = 2
+
+[node name="ViewportReadout" type="Label" parent="SafeArea/Layout/BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.48, 0.52, 0.58, 1)
+theme_override_font_sizes/font_size = 16
+text = "720 × 1280 logical viewport"
+
+[node name="Targets" type="Label" parent="SafeArea/Layout/BottomBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.48, 0.52, 0.58, 1)
+theme_override_font_sizes/font_size = 16
+text = "WEB · ANDROID"
+horizontal_alignment = 2
