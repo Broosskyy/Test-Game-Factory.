@@ -4,11 +4,13 @@ on:
   push:
     branches:
       - main
-      - feature/game-factory-foundation
   pull_request:
     branches:
       - main
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 env:
   GODOT_VERSION: "4.7.2"
@@ -28,7 +30,7 @@ jobs:
         shell: bash
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends fontconfig
+          apt-get install -y --no-install-recommends fontconfig curl jq
           rm -rf /var/lib/apt/lists/*
 
       - name: Prepare Godot export environment
@@ -66,6 +68,53 @@ jobs:
         run: |
           mkdir -p build/android
           godot --headless --verbose --path . --export-debug "Android Debug" build/android/TestGameFactory.apk
+
+      - name: Package live Web bundle
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          rm -f build/test-game-factory-web.zip
+          (
+            cd build/web
+            zip -q -r ../test-game-factory-web.zip .
+          )
+
+      - name: Publish live Web bundle
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          API="https://api.github.com"
+          REPO="${GITHUB_REPOSITORY}"
+          TAG="web-live"
+          ASSET="test-game-factory-web.zip"
+          AUTH="Authorization: Bearer ${GH_TOKEN}"
+          ACCEPT="Accept: application/vnd.github+json"
+
+          release_json="$(curl -fsSL -H "$AUTH" -H "$ACCEPT" "$API/repos/$REPO/releases/tags/$TAG" || true)"
+
+          if [ -z "$release_json" ]; then
+            payload="$(jq -n               --arg tag "$TAG"               --arg sha "$GITHUB_SHA"               '{tag_name:$tag,target_commitish:$sha,name:"Live Web Build",body:"commit=pending",prerelease:true}')"
+            release_json="$(curl -fsSL -X POST -H "$AUTH" -H "$ACCEPT" -H "Content-Type: application/json"               "$API/repos/$REPO/releases" -d "$payload")"
+          fi
+
+          release_id="$(printf '%s' "$release_json" | jq -r '.id')"
+
+          existing_asset_id="$(printf '%s' "$release_json" | jq -r --arg name "$ASSET"             '.assets[]? | select(.name == $name) | .id' | head -n1)"
+
+          if [ -n "$existing_asset_id" ] && [ "$existing_asset_id" != "null" ]; then
+            curl -fsSL -X DELETE -H "$AUTH" -H "$ACCEPT"               "$API/repos/$REPO/releases/assets/$existing_asset_id"
+          fi
+
+          curl -fsSL -X POST -H "$AUTH" -H "$ACCEPT" -H "Content-Type: application/zip"             --data-binary "@build/$ASSET"             "https://uploads.github.com/repos/$REPO/releases/$release_id/assets?name=$ASSET" >/dev/null
+
+          ready_payload="$(jq -n --arg body "commit=$GITHUB_SHA" '{body:$body}')"
+          curl -fsSL -X PATCH -H "$AUTH" -H "$ACCEPT" -H "Content-Type: application/json"             "$API/repos/$REPO/releases/$release_id" -d "$ready_payload" >/dev/null
+
+          echo "Published live Web bundle for $GITHUB_SHA"
 
       - name: Upload Web build
         uses: actions/upload-artifact@v4
