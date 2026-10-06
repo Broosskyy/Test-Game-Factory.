@@ -85,6 +85,7 @@ var busy := false
 var auto_enabled := false
 var auto_cooldown := 0.0
 var damage_index := 0
+var first_input_hint_available := true
 
 var _last_landscape := false
 var _profile_initialized := false
@@ -356,7 +357,7 @@ func _build_stage() -> void:
 	streak.add_child(streak_text)
 
 	hero_holder = Control.new()
-	_anchor(hero_holder, -0.005, 0.45, 0.39, 0.80)
+	_anchor(hero_holder, 0.025, 0.43, 0.365, 0.79)
 	hero_holder.z_index = 10
 	hero_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(hero_holder)
@@ -376,7 +377,7 @@ func _build_stage() -> void:
 
 	hit_fx = _make_texture_rect()
 	hit_fx.texture = _load_v2_texture("v190/vfx/combat_impacts/nature_impact.png")
-	_anchor(hit_fx, 0.56, 0.39, 0.97, 0.70)
+	_anchor(hit_fx, 0.50, 0.31, 1.02, 0.72)
 	hit_fx.z_index = 16
 	hit_fx.visible = false
 	stage.add_child(hit_fx)
@@ -410,7 +411,7 @@ func _build_stage() -> void:
 
 func _build_enemy_hud() -> void:
 	var hud := PanelContainer.new()
-	_anchor(hud, 0.285, 0.092, 0.715, 0.215)
+	_anchor(hud, 0.25, 0.088, 0.75, 0.22)
 	hud.z_index = 40
 	hud.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.065, 0.105, 0.96), Color("#4c7694"), 15))
 	stage.add_child(hud)
@@ -435,7 +436,7 @@ func _build_enemy_hud() -> void:
 	enemy_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	enemy_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	enemy_name_label.add_theme_color_override("font_color", Color.WHITE)
-	enemy_name_label.add_theme_font_size_override("font_size", 20)
+	enemy_name_label.add_theme_font_size_override("font_size", 22)
 	title.add_child(enemy_name_label)
 
 	enemy_level_label = Label.new()
@@ -461,7 +462,7 @@ func _build_enemy_hud() -> void:
 	enemy_hp_text.add_theme_color_override("font_shadow_color", Color.BLACK)
 	enemy_hp_text.add_theme_constant_override("shadow_offset_x", 2)
 	enemy_hp_text.add_theme_constant_override("shadow_offset_y", 2)
-	enemy_hp_text.add_theme_font_size_override("font_size", 13)
+	enemy_hp_text.add_theme_font_size_override("font_size", 14)
 	_anchor(enemy_hp_text, 0.0, 0.0, 1.0, 1.0)
 	bar_wrap.add_child(enemy_hp_text)
 
@@ -490,8 +491,8 @@ func _build_damage_number() -> void:
 	damage_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.98))
 	damage_label.add_theme_constant_override("shadow_offset_x", 4)
 	damage_label.add_theme_constant_override("shadow_offset_y", 4)
-	damage_label.add_theme_font_size_override("font_size", 68)
-	_anchor(damage_label, 0.68, 0.305, 0.985, 0.49)
+	damage_label.add_theme_font_size_override("font_size", 76)
+	_anchor(damage_label, 0.655, 0.285, 0.995, 0.495)
 	damage_label.rotation = deg_to_rad(-5.0)
 	damage_label.z_index = 47
 	damage_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -793,6 +794,7 @@ func _start_run() -> void:
 	hero_damage = 25
 	encounter_index = 0
 	damage_index = 0
+	first_input_hint_available = true
 	auto_enabled = false
 	auto_cooldown = 0.0
 	busy = false
@@ -826,11 +828,15 @@ func _start_encounter(index: int) -> void:
 	_apply_enemy_layout(str(current_enemy["layout"]))
 	_set_enemy_state("idle")
 
+	var enemy_spawn_position := enemy_holder.position
+	enemy_holder.position = enemy_spawn_position + Vector2(26, 6)
 	enemy_holder.modulate = Color(1, 1, 1, 0)
 	var spawn_tween := create_tween()
-	spawn_tween.tween_property(enemy_holder, "modulate:a", 1.0, 0.28)
+	spawn_tween.set_parallel(true)
+	spawn_tween.tween_property(enemy_holder, "modulate:a", 1.0, 0.22)
+	spawn_tween.tween_property(enemy_holder, "position", enemy_spawn_position, 0.26).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
-	attack_hint.visible = true
+	attack_hint.visible = encounter_index == 0 and first_input_hint_available
 	_refresh_enemy_hud()
 
 
@@ -839,6 +845,7 @@ func _attack() -> void:
 		return
 
 	busy = true
+	first_input_hint_available = false
 	attack_hint.visible = false
 
 	_set_hero_state("attack")
@@ -852,14 +859,19 @@ func _attack() -> void:
 
 	enemy_hp = maxi(0, enemy_hp - hero_damage)
 	_set_enemy_state("hit")
+	enemy_art.modulate = Color(1.35, 1.35, 1.35, 1.0)
 	_show_hit_fx()
 	_show_damage()
 	_refresh_enemy_hud()
 
 	var enemy_start := enemy_holder.position
 	var recoil := create_tween()
-	recoil.tween_property(enemy_holder, "position", enemy_start + Vector2(12, 0), 0.06)
-	recoil.tween_property(enemy_holder, "position", enemy_start, 0.11)
+	recoil.tween_property(enemy_holder, "position", enemy_start + Vector2(18, -2), 0.055)
+	recoil.tween_property(enemy_holder, "position", enemy_start - Vector2(4, 0), 0.06)
+	recoil.tween_property(enemy_holder, "position", enemy_start, 0.085)
+
+	var flash_tween := create_tween()
+	flash_tween.tween_property(enemy_art, "modulate", Color.WHITE, 0.14)
 
 	await get_tree().create_timer(0.22).timeout
 
@@ -875,10 +887,15 @@ func _attack() -> void:
 
 	player_hp = maxi(0, player_hp - int(current_enemy["enemy_damage"]))
 	_set_hero_state("hit")
-	hero_art.modulate = Color(1.2, 0.72, 0.72, 1.0)
+	hero_art.modulate = Color(1.25, 0.68, 0.68, 1.0)
 	_refresh_player_hud()
 
-	await get_tree().create_timer(0.13).timeout
+	var hero_hit_start := hero_holder.position
+	var hero_hit_tween := create_tween()
+	hero_hit_tween.tween_property(hero_holder, "position", hero_hit_start - Vector2(14, 1), 0.06)
+	hero_hit_tween.tween_property(hero_holder, "position", hero_hit_start, 0.10)
+
+	await get_tree().create_timer(0.14).timeout
 	hero_art.modulate = Color.WHITE
 
 	if player_hp <= 0:
@@ -888,7 +905,7 @@ func _attack() -> void:
 
 	_set_hero_state("idle")
 	_set_enemy_state("idle")
-	attack_hint.visible = true
+	attack_hint.visible = false
 	busy = false
 
 
@@ -897,6 +914,13 @@ func _handle_enemy_defeat() -> void:
 	_set_hero_state("victory")
 	run_mode = "transition"
 	attack_hint.visible = false
+
+	var defeated_start := enemy_holder.position
+	var defeat_tween := create_tween()
+	defeat_tween.set_parallel(true)
+	defeat_tween.tween_property(enemy_holder, "position", defeated_start + Vector2(0, 16), 0.30).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	defeat_tween.tween_property(enemy_holder, "modulate:a", 0.28, 0.30)
+	await defeat_tween.finished
 
 	var burst := _make_texture_rect()
 	burst.texture = _load_v2_texture("v190/vfx/rewards/gold_burst.png")
@@ -1082,11 +1106,11 @@ func _refresh_player_hud() -> void:
 func _apply_enemy_layout(layout: String) -> void:
 	match layout:
 		"boss":
-			_anchor(enemy_holder, 0.36, 0.235, 1.025, 0.805)
+			_anchor(enemy_holder, 0.255, 0.145, 1.055, 0.825)
 		"elite":
-			_anchor(enemy_holder, 0.44, 0.275, 1.005, 0.805)
+			_anchor(enemy_holder, 0.35, 0.215, 1.035, 0.82)
 		_:
-			_anchor(enemy_holder, 0.50, 0.315, 0.985, 0.805)
+			_anchor(enemy_holder, 0.415, 0.265, 1.015, 0.81)
 
 
 func _set_hero_state(state: String) -> void:
