@@ -7,8 +7,8 @@
 config_version=5
 
 [application]
-config/name="Test Game Factory"
-run/main_scene="res://game/main.tscn"
+config/name="REALM ALLIANCE V2"
+run/main_scene="res://realm_alliance/combat/wolkgarten_combat.tscn"
 
 [display]
 window/size/viewport_width=720
