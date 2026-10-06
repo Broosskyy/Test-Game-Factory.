@@ -259,7 +259,7 @@ func _build_header() -> void:
 
 		var icon := TextureRect.new()
 		icon.texture = _load_v2_texture(entry[0])
-		icon.custom_minimum_size = Vector2(27, 27)
+		icon.custom_minimum_size = Vector2(23, 23)
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -357,7 +357,7 @@ func _build_stage() -> void:
 	streak.add_child(streak_text)
 
 	hero_holder = Control.new()
-	_anchor(hero_holder, 0.025, 0.43, 0.365, 0.79)
+	_anchor(hero_holder, 0.03, 0.49, 0.355, 0.85)
 	hero_holder.z_index = 10
 	hero_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(hero_holder)
@@ -411,7 +411,7 @@ func _build_stage() -> void:
 
 func _build_enemy_hud() -> void:
 	var hud := PanelContainer.new()
-	_anchor(hud, 0.25, 0.088, 0.75, 0.22)
+	_anchor(hud, 0.265, 0.092, 0.735, 0.185)
 	hud.z_index = 40
 	hud.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.065, 0.105, 0.96), Color("#4c7694"), 15))
 	stage.add_child(hud)
@@ -436,7 +436,7 @@ func _build_enemy_hud() -> void:
 	enemy_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	enemy_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	enemy_name_label.add_theme_color_override("font_color", Color.WHITE)
-	enemy_name_label.add_theme_font_size_override("font_size", 22)
+	enemy_name_label.add_theme_font_size_override("font_size", 20)
 	title.add_child(enemy_name_label)
 
 	enemy_level_label = Label.new()
@@ -462,7 +462,7 @@ func _build_enemy_hud() -> void:
 	enemy_hp_text.add_theme_color_override("font_shadow_color", Color.BLACK)
 	enemy_hp_text.add_theme_constant_override("shadow_offset_x", 2)
 	enemy_hp_text.add_theme_constant_override("shadow_offset_y", 2)
-	enemy_hp_text.add_theme_font_size_override("font_size", 14)
+	enemy_hp_text.add_theme_font_size_override("font_size", 13)
 	_anchor(enemy_hp_text, 0.0, 0.0, 1.0, 1.0)
 	bar_wrap.add_child(enemy_hp_text)
 
@@ -652,13 +652,13 @@ func _build_bottom_nav() -> void:
 func _build_level_overlay() -> void:
 	level_overlay = ColorRect.new()
 	_anchor(level_overlay, 0.0, 0.0, 1.0, 1.0)
-	level_overlay.color = Color(0.01, 0.025, 0.035, 0.84)
+	level_overlay.color = Color(0.01, 0.025, 0.035, 0.70)
 	level_overlay.z_index = 200
 	level_overlay.visible = false
 	add_child(level_overlay)
 
 	var card := PanelContainer.new()
-	_anchor(card, 0.16, 0.27, 0.84, 0.68)
+	_anchor(card, 0.20, 0.34, 0.80, 0.62)
 	card.add_theme_stylebox_override("panel", _panel_style(Color("#0b1725"), Color("#d7a832"), 24))
 	level_overlay.add_child(card)
 
@@ -669,7 +669,7 @@ func _build_level_overlay() -> void:
 
 	var art := TextureRect.new()
 	art.texture = _load_v2_texture("ui_v4/upgrade_evolution_a/level_up.png")
-	art.custom_minimum_size = Vector2(180, 150)
+	art.custom_minimum_size = Vector2(126, 96)
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	content.add_child(art)
@@ -678,21 +678,21 @@ func _build_level_overlay() -> void:
 	title.text = "LEVEL 43"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_color_override("font_color", Color("#ffe69b"))
-	title.add_theme_font_size_override("font_size", 36)
+	title.add_theme_font_size_override("font_size", 30)
 	content.add_child(title)
 
 	var stats := Label.new()
 	stats.text = "+5 ANGRIFF\n+6 LEBEN\n+2 GOLDFUND"
 	stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stats.add_theme_color_override("font_color", Color("#eef5ff"))
-	stats.add_theme_font_size_override("font_size", 17)
+	stats.add_theme_font_size_override("font_size", 14)
 	content.add_child(stats)
 
 	var continue_button := Button.new()
 	continue_button.text = "WEITER"
-	continue_button.custom_minimum_size = Vector2(220, 56)
+	continue_button.custom_minimum_size = Vector2(190, 46)
 	continue_button.focus_mode = Control.FOCUS_NONE
-	continue_button.add_theme_font_size_override("font_size", 17)
+	continue_button.add_theme_font_size_override("font_size", 15)
 	continue_button.add_theme_stylebox_override("normal", _panel_style(Color("#234e2f"), Color("#64da82"), 14))
 	continue_button.pressed.connect(_continue_after_levelup)
 	content.add_child(continue_button)
@@ -701,13 +701,13 @@ func _build_level_overlay() -> void:
 func _build_loot_overlay() -> void:
 	loot_overlay = ColorRect.new()
 	_anchor(loot_overlay, 0.0, 0.0, 1.0, 1.0)
-	loot_overlay.color = Color(0.01, 0.025, 0.035, 0.86)
+	loot_overlay.color = Color(0.01, 0.025, 0.035, 0.72)
 	loot_overlay.z_index = 210
 	loot_overlay.visible = false
 	add_child(loot_overlay)
 
 	var card := PanelContainer.new()
-	_anchor(card, 0.15, 0.25, 0.85, 0.72)
+	_anchor(card, 0.20, 0.31, 0.80, 0.64)
 	card.add_theme_stylebox_override("panel", _panel_style(Color("#0b1725"), Color("#d7a832"), 24))
 	loot_overlay.add_child(card)
 
@@ -720,12 +720,12 @@ func _build_loot_overlay() -> void:
 	title.text = "BOSS-BEUTE"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_color_override("font_color", Color("#ffe69b"))
-	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_font_size_override("font_size", 24)
 	content.add_child(title)
 
 	chest_art = TextureRect.new()
 	chest_art.texture = _load_v2_texture("v190/rewards/chest_states/closed.png")
-	chest_art.custom_minimum_size = Vector2(260, 210)
+	chest_art.custom_minimum_size = Vector2(190, 150)
 	chest_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	chest_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	content.add_child(chest_art)
@@ -734,14 +734,14 @@ func _build_loot_overlay() -> void:
 	reward.text = "GARANTIERTE BOSS-TRUHE"
 	reward.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	reward.add_theme_color_override("font_color", Color("#dce9f5"))
-	reward.add_theme_font_size_override("font_size", 15)
+	reward.add_theme_font_size_override("font_size", 13)
 	content.add_child(reward)
 
 	var open_button := Button.new()
 	open_button.text = "TRUHE ÖFFNEN"
-	open_button.custom_minimum_size = Vector2(240, 58)
+	open_button.custom_minimum_size = Vector2(205, 48)
 	open_button.focus_mode = Control.FOCUS_NONE
-	open_button.add_theme_font_size_override("font_size", 17)
+	open_button.add_theme_font_size_override("font_size", 15)
 	open_button.add_theme_stylebox_override("normal", _panel_style(Color("#5d3512"), Color("#ffc85f"), 14))
 	open_button.pressed.connect(_open_loot)
 	content.add_child(open_button)
@@ -935,7 +935,7 @@ func _handle_enemy_defeat() -> void:
 	reward_tween.tween_property(burst, "scale", Vector2(1.08, 1.08), 0.30)
 	await reward_tween.finished
 
-	await get_tree().create_timer(0.55).timeout
+	await get_tree().create_timer(0.38).timeout
 	burst.queue_free()
 
 	if encounter_index == 2:
@@ -958,7 +958,7 @@ func _show_level_up() -> void:
 
 	var beam := _make_texture_rect()
 	beam.texture = _load_v2_texture("v190/vfx/progression_a/gold_level_beam.png")
-	_anchor(beam, 0.18, 0.18, 0.82, 0.80)
+	_anchor(beam, 0.28, 0.26, 0.72, 0.64)
 	beam.z_index = 201
 	beam.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	level_overlay.add_child(beam)
@@ -1006,7 +1006,7 @@ func _open_loot() -> void:
 
 	var burst := _make_texture_rect()
 	burst.texture = _load_v2_texture("v190/vfx/rewards/gold_burst.png")
-	_anchor(burst, 0.24, 0.23, 0.76, 0.70)
+	_anchor(burst, 0.31, 0.31, 0.69, 0.62)
 	burst.z_index = 212
 	burst.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	loot_overlay.add_child(burst)
@@ -1106,11 +1106,11 @@ func _refresh_player_hud() -> void:
 func _apply_enemy_layout(layout: String) -> void:
 	match layout:
 		"boss":
-			_anchor(enemy_holder, 0.255, 0.145, 1.055, 0.825)
+			_anchor(enemy_holder, 0.255, 0.245, 1.055, 0.925)
 		"elite":
-			_anchor(enemy_holder, 0.35, 0.215, 1.035, 0.82)
+			_anchor(enemy_holder, 0.35, 0.295, 1.035, 0.90)
 		_:
-			_anchor(enemy_holder, 0.415, 0.265, 1.015, 0.81)
+			_anchor(enemy_holder, 0.415, 0.335, 1.015, 0.88)
 
 
 func _set_hero_state(state: String) -> void:
