@@ -357,7 +357,7 @@ func _build_stage() -> void:
 	streak.add_child(streak_text)
 
 	hero_holder = Control.new()
-	_anchor(hero_holder, 0.045, 0.47, 0.37, 0.85)
+	_anchor(hero_holder, 0.045, 0.49, 0.37, 0.85)
 	hero_holder.z_index = 12
 	hero_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(hero_holder)
@@ -805,7 +805,7 @@ func _start_run() -> void:
 	result_overlay.visible = false
 
 	hero_art.modulate = Color.WHITE
-	hero_holder.position = Vector2.ZERO
+	_apply_hero_layout()
 	_set_hero_state("idle")
 
 	if auto_button != null:
@@ -1103,14 +1103,18 @@ func _refresh_player_hud() -> void:
 	player_hp_text.text = "%s / 1.420" % _format_thousands(visible_hp)
 
 
+func _apply_hero_layout() -> void:
+	_anchor(hero_holder, 0.045, 0.49, 0.37, 0.85)
+
+
 func _apply_enemy_layout(layout: String) -> void:
 	match layout:
 		"boss":
-			_anchor(enemy_holder, 0.255, 0.245, 1.055, 0.925)
+			_anchor(enemy_holder, 0.255, 0.22, 1.055, 0.89)
 		"elite":
-			_anchor(enemy_holder, 0.35, 0.295, 1.035, 0.90)
+			_anchor(enemy_holder, 0.35, 0.275, 1.035, 0.87)
 		_:
-			_anchor(enemy_holder, 0.415, 0.335, 1.015, 0.88)
+			_anchor(enemy_holder, 0.43, 0.315, 1.005, 0.84)
 
 
 func _set_hero_state(state: String) -> void:
