@@ -357,8 +357,8 @@ func _build_stage() -> void:
 	streak.add_child(streak_text)
 
 	hero_holder = Control.new()
-	_anchor(hero_holder, 0.03, 0.49, 0.355, 0.85)
-	hero_holder.z_index = 10
+	_anchor(hero_holder, 0.045, 0.47, 0.37, 0.85)
+	hero_holder.z_index = 12
 	hero_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(hero_holder)
 
@@ -367,7 +367,7 @@ func _build_stage() -> void:
 	hero_holder.add_child(hero_art)
 
 	enemy_holder = Control.new()
-	enemy_holder.z_index = 9
+	enemy_holder.z_index = 11
 	enemy_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(enemy_holder)
 
@@ -378,7 +378,7 @@ func _build_stage() -> void:
 	hit_fx = _make_texture_rect()
 	hit_fx.texture = _load_v2_texture("v190/vfx/combat_impacts/nature_impact.png")
 	_anchor(hit_fx, 0.50, 0.31, 1.02, 0.72)
-	hit_fx.z_index = 16
+	hit_fx.z_index = 17
 	hit_fx.visible = false
 	stage.add_child(hit_fx)
 
@@ -492,7 +492,7 @@ func _build_damage_number() -> void:
 	damage_label.add_theme_constant_override("shadow_offset_x", 4)
 	damage_label.add_theme_constant_override("shadow_offset_y", 4)
 	damage_label.add_theme_font_size_override("font_size", 76)
-	_anchor(damage_label, 0.655, 0.285, 0.995, 0.495)
+	_anchor(damage_label, 0.655, 0.31, 0.995, 0.515)
 	damage_label.rotation = deg_to_rad(-5.0)
 	damage_label.z_index = 47
 	damage_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -503,7 +503,7 @@ func _build_combat_bottom_hud() -> void:
 	var bottom := ColorRect.new()
 	_anchor(bottom, 0.0, 0.715, 1.0, 1.0)
 	bottom.color = Color(0.015, 0.04, 0.065, 0.78)
-	bottom.z_index = 24
+	bottom.z_index = 8
 	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(bottom)
 
