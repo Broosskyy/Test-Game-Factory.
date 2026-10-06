@@ -89,7 +89,7 @@ layout_mode = 2
 layout_mode = 2
 theme_override_colors/font_color = Color(0.62, 0.66, 0.72, 1)
 theme_override_font_sizes/font_size = 20
-text = "Next · Hero → Movement → Collision → Camera → Touch"
+text = "Next: Hero > Movement > Collision > Camera > Touch"
 horizontal_alignment = 1
 autowrap_mode = 2
 

@@ -1,17 +1,58 @@
 extends Control
 
+const PORTRAIT_REFERENCE := Vector2i(720, 1280)
+const LANDSCAPE_REFERENCE := Vector2i(960, 540)
+
 @onready var viewport_readout: Label = %ViewportReadout
 @onready var orientation_badge: Label = %OrientationBadge
 
+var _last_landscape: bool
+var _profile_initialized := false
+var _applying_profile := false
+
 
 func _ready() -> void:
-	if not get_viewport().size_changed.is_connected(_refresh_debug_readout):
-		get_viewport().size_changed.connect(_refresh_debug_readout)
+	if not get_window().size_changed.is_connected(_on_window_size_changed):
+		get_window().size_changed.connect(_on_window_size_changed)
+
+	_apply_orientation_profile()
 	call_deferred("_refresh_debug_readout")
 
 
+func _on_window_size_changed() -> void:
+	if _applying_profile:
+		return
+	_apply_orientation_profile()
+	call_deferred("_refresh_debug_readout")
+
+
+func _apply_orientation_profile() -> void:
+	var physical_size := get_window().size
+	if physical_size.x <= 0 or physical_size.y <= 0:
+		return
+
+	var is_landscape := physical_size.x > physical_size.y
+	if _profile_initialized and is_landscape == _last_landscape:
+		return
+
+	_applying_profile = true
+	_last_landscape = is_landscape
+	_profile_initialized = true
+
+	get_window().content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	get_window().content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	get_window().content_scale_size = LANDSCAPE_REFERENCE if is_landscape else PORTRAIT_REFERENCE
+
+	_applying_profile = false
+
+
 func _refresh_debug_readout() -> void:
-	var size := get_viewport_rect().size
-	var orientation := "PORTRAIT" if size.y >= size.x else "LANDSCAPE"
+	var physical_size := get_window().size
+	var logical_size := get_viewport_rect().size
+	var orientation := "LANDSCAPE" if physical_size.x > physical_size.y else "PORTRAIT"
+
 	orientation_badge.text = orientation
-	viewport_readout.text = "%d × %d logical viewport" % [roundi(size.x), roundi(size.y)]
+	viewport_readout.text = "%d × %d logical viewport" % [
+		roundi(logical_size.x),
+		roundi(logical_size.y)
+	]
