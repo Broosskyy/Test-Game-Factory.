@@ -1,6 +1,6 @@
 # REALM ALLIANCE V2 — Godot Vertical Slice
 
-Clean Godot production base for the REALM ALLIANCE Wolkgarten combat slice and the reusable systems proven by that slice.
+Clean Godot production base for proving one polished REALM ALLIANCE combat run before scaling the full game or extracting reusable Game Factory systems.
 
 ## Engine / targets
 
@@ -11,28 +11,28 @@ Clean Godot production base for the REALM ALLIANCE Wolkgarten combat slice and t
 
 ## Current milestone
 
-**REALM ALLIANCE V2 — Vertical Slice Port 01**
+**Grünhain Vertical Slice 06**
 
-The generic Game Factory demo is no longer the product reference. The canonical content reference is the existing REALM ALLIANCE combat master from `Broosskyy/Realm-Alliance`.
+The current production test is now the complete Grünhain run because the V2 repository contains a full production encounter roster and a finished single-background combat scene for this region.
 
-Current slice:
+Run target:
 
-`Wolkgarten → Realmwächter → Wolkenflink → Tap Combat → Hit → Counter-Hit → Victory/Defeat → Restart`
+`Start → 3 normal enemies → Level-up → Elite → Boss → Loot → Victory/Defeat → Restart`
 
-See:
+Current production roster:
 
-- `docs/REALM_ALLIANCE_PORT_01.md`
-- `docs/PRODUCTION_RULES.md`
-- `docs/VERTICAL_SLICE.md`
+- M001 Waldwinzling
+- M002 Blatthorn
+- M004 Pilzling
+- M010 Waldgeist (Elite)
+- B001 Mooskönig (Boss)
 
-## Sync production art
+The previous Wolkgarten Godot scene remains in the repository as a visual/port reference, but it is no longer the active main scene for the Game Factory vertical-slice test.
 
-```bash
-bash scripts/sync_realm_assets.sh
-```
+## Asset policy
 
-CI performs the same pinned sync automatically before Godot imports the project.
+Runtime assets are pinned to exact commits from `Broosskyy/Realm-Alliance`. Presentation sheets and mockups are reference only; original isolated PNGs are preferred whenever available.
 
 ## Core principle
 
-> REALM ALLIANCE produces the proven game systems. The Game Factory extracts reusable systems only after they work in the real slice.
+> Finish one small run to Play-Store quality first. Scale content and extract reusable systems only after the run is stable and polished.
