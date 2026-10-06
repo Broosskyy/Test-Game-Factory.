@@ -11,6 +11,9 @@ V2_SHA="61b4aa9b2dff1337e0a64615f8f98c4791e1af4e"
 V2_ROOT="https://raw.githubusercontent.com/${SOURCE_REPO}/${V2_SHA}/assets/production"
 V2_DEST="assets/realm_alliance/v2"
 
+V2_GAME_ROOT="https://raw.githubusercontent.com/${SOURCE_REPO}/${V2_SHA}/assets"
+V2_GAME_DEST="assets/realm_alliance/v2_game"
+
 sync_file() {
   local root="$1"
   local dest_root="$2"
@@ -96,6 +99,13 @@ v2_files=(
   "ui_v4/monster_boss_hud/target_frame.png"
 
   "ui_v4/quest_states/streak.png"
+  "ui_v4/upgrade_evolution_a/level_up.png"
+  "ui_v4/rewards_chests_a/rewards_chests_a_01.png"
+
+  "v190/rewards/chest_states/closed.png"
+  "v190/rewards/chest_states/opening.png"
+  "v190/rewards/chest_states/open.png"
+  "v190/rewards/chest_states/open_glow.png"
 
   "v190/vfx/combat_impacts/ice_impact.png"
   "v190/vfx/combat_impacts/ice_impact_strong.png"
@@ -112,6 +122,36 @@ v2_files=(
   "v190/vfx/rewards/purple_vortex.png"
 )
 
+v2_game_files=(
+  "world/greenvale/BG001_gruenhain_home_v11.png"
+
+  "monsters/greenvale/states/M001_idle.png"
+  "monsters/greenvale/states/M001_attack.png"
+  "monsters/greenvale/states/M001_hit.png"
+  "monsters/greenvale/states/M001_defeat.png"
+
+  "monsters/greenvale/states/M002_idle.png"
+  "monsters/greenvale/states/M002_attack.png"
+  "monsters/greenvale/states/M002_hit.png"
+  "monsters/greenvale/states/M002_defeat.png"
+
+  "monsters/greenvale/states/M004_idle.png"
+  "monsters/greenvale/states/M004_attack.png"
+  "monsters/greenvale/states/M004_hit.png"
+  "monsters/greenvale/states/M004_defeat.png"
+
+  "monsters/greenvale/states/M010_idle.png"
+  "monsters/greenvale/states/M010_attack.png"
+  "monsters/greenvale/states/M010_hit.png"
+  "monsters/greenvale/states/M010_defeat.png"
+
+  "monsters/greenvale/states/B001_idle.png"
+  "monsters/greenvale/states/B001_attack.png"
+  "monsters/greenvale/states/B001_hit.png"
+  "monsters/greenvale/states/B001_defeat.png"
+  "monsters/greenvale/states/B001_shield.png"
+)
+
 echo "Syncing REALM ALLIANCE combat-master assets from ${COMBAT_SHA}..."
 for relative in "${combat_files[@]}"; do
   sync_file "$COMBAT_ROOT" "$COMBAT_DEST" "$relative"
@@ -120,6 +160,11 @@ done
 echo "Syncing REALM ALLIANCE V2 UI/VFX assets from ${V2_SHA}..."
 for relative in "${v2_files[@]}"; do
   sync_file "$V2_ROOT" "$V2_DEST" "$relative"
+done
+
+echo "Syncing REALM ALLIANCE V2 Grünhain runtime assets from ${V2_SHA}..."
+for relative in "${v2_game_files[@]}"; do
+  sync_file "$V2_GAME_ROOT" "$V2_GAME_DEST" "$relative"
 done
 
 cat > "${COMBAT_DEST}/SOURCE.txt" <<EOF
@@ -136,4 +181,11 @@ commit=${V2_SHA}
 branch_reference=realm-v2-web-first
 EOF
 
-echo "REALM ALLIANCE dual-source asset sync complete."
+cat > "${V2_GAME_DEST}/SOURCE.txt" <<EOF
+REALM ALLIANCE V2 Grünhain runtime source
+repo=${SOURCE_REPO}
+commit=${V2_SHA}
+branch_reference=realm-v2-web-first
+EOF
+
+echo "REALM ALLIANCE pinned asset sync complete."
