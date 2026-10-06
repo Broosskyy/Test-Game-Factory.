@@ -5,6 +5,7 @@ const LANDSCAPE_REFERENCE := Vector2i(960, 540)
 
 @onready var viewport_readout: Label = %ViewportReadout
 @onready var orientation_badge: Label = %OrientationBadge
+@onready var fullscreen_button: Button = %FullscreenButton
 
 var _last_landscape: bool
 var _profile_initialized := false
@@ -15,6 +16,10 @@ func _ready() -> void:
 	if not get_window().size_changed.is_connected(_on_window_size_changed):
 		get_window().size_changed.connect(_on_window_size_changed)
 
+	if not fullscreen_button.pressed.is_connected(_toggle_fullscreen):
+		fullscreen_button.pressed.connect(_toggle_fullscreen)
+
+	fullscreen_button.visible = OS.get_name() == "Web"
 	_apply_orientation_profile()
 	call_deferred("_refresh_debug_readout")
 
@@ -22,6 +27,7 @@ func _ready() -> void:
 func _on_window_size_changed() -> void:
 	if _applying_profile:
 		return
+
 	_apply_orientation_profile()
 	call_deferred("_refresh_debug_readout")
 
@@ -52,7 +58,15 @@ func _refresh_debug_readout() -> void:
 	var orientation := "LANDSCAPE" if physical_size.x > physical_size.y else "PORTRAIT"
 
 	orientation_badge.text = orientation
-	viewport_readout.text = "%d × %d logical viewport" % [
+	viewport_readout.text = "%d x %d" % [
 		roundi(logical_size.x),
 		roundi(logical_size.y)
 	]
+
+
+func _toggle_fullscreen() -> void:
+	var current_mode := DisplayServer.window_get_mode()
+	if current_mode == DisplayServer.WINDOW_MODE_FULLSCREEN:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	else:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)

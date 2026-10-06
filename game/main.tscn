@@ -1,112 +1,142 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=7 format=3]
 
-[ext_resource type="Script" path="res://game/responsive_foundation.gd" id="1_main"]
-[ext_resource type="Script" path="res://game_factory/ui/safe_area_container.gd" id="2_safe"]
+[ext_resource type="Script" path="res://game/world_test.gd" id="1_world"]
+[ext_resource type="Script" path="res://game/hero/hero.gd" id="2_hero"]
+[ext_resource type="Script" path="res://game/responsive_foundation.gd" id="3_hud"]
+[ext_resource type="Script" path="res://game_factory/ui/safe_area_container.gd" id="4_safe"]
+[ext_resource type="Script" path="res://game_factory/input/virtual_joystick.gd" id="5_joystick"]
 
-[node name="Main" type="Control"]
+[sub_resource type="CircleShape2D" id="CircleShape2D_hero"]
+radius = 31.0
+
+[node name="Main" type="Node2D"]
+
+[node name="World" type="Node2D" parent="."]
+script = ExtResource("1_world")
+
+[node name="Hero" type="CharacterBody2D" parent="World"]
+position = Vector2(1200, 1000)
+script = ExtResource("2_hero")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="World/Hero"]
+shape = SubResource("CircleShape2D_hero")
+
+[node name="Camera2D" type="Camera2D" parent="World/Hero"]
+position_smoothing_enabled = true
+position_smoothing_speed = 8.0
+limit_left = 0
+limit_top = 0
+limit_right = 2400
+limit_bottom = 2000
+limit_smoothed = true
+enabled = true
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="HUDRoot" type="Control" parent="HUD"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_main")
-
-[node name="Background" type="ColorRect" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0.025, 0.03, 0.04, 1)
 mouse_filter = 2
+script = ExtResource("3_hud")
 
-[node name="SafeArea" type="MarginContainer" parent="."]
+[node name="SafeArea" type="MarginContainer" parent="HUD/HUDRoot"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("2_safe")
+script = ExtResource("4_safe")
 
-[node name="Layout" type="VBoxContainer" parent="SafeArea"]
-layout_mode = 2
-theme_override_constants/separation = 24
-
-[node name="TopBar" type="HBoxContainer" parent="SafeArea/Layout"]
+[node name="SafeContent" type="Control" parent="HUD/HUDRoot/SafeArea"]
 layout_mode = 2
 
-[node name="FoundationBadge" type="Label" parent="SafeArea/Layout/TopBar"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.62, 0.66, 0.72, 1)
+[node name="Title" type="Label" parent="HUD/HUDRoot/SafeArea/SafeContent"]
+layout_mode = 1
+offset_right = 320.0
+offset_bottom = 30.0
+theme_override_colors/font_color = Color(0.78, 0.82, 0.9, 1)
 theme_override_font_sizes/font_size = 18
-text = "GAME FACTORY · GODOT 4.7.2"
+text = "HERO FOUNDATION"
 
-[node name="OrientationBadge" type="Label" parent="SafeArea/Layout/TopBar"]
+[node name="OrientationBadge" type="Label" parent="HUD/HUDRoot/SafeArea/SafeContent"]
 unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.77, 0.8, 0.85, 1)
-theme_override_font_sizes/font_size = 18
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -190.0
+offset_bottom = 30.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(0.62, 0.68, 0.78, 1)
+theme_override_font_sizes/font_size = 17
 text = "PORTRAIT"
 horizontal_alignment = 2
 
-[node name="Center" type="CenterContainer" parent="SafeArea/Layout"]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="Content" type="VBoxContainer" parent="SafeArea/Layout/Center"]
-custom_minimum_size = Vector2(560, 0)
-layout_mode = 2
-theme_override_constants/separation = 18
-
-[node name="Eyebrow" type="Label" parent="SafeArea/Layout/Center/Content"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.56, 0.6, 0.67, 1)
-theme_override_font_sizes/font_size = 18
-text = "FOUNDATION / RESPONSIVE"
-horizontal_alignment = 1
-
-[node name="Title" type="Label" parent="SafeArea/Layout/Center/Content"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 52
-text = "GAME FACTORY"
-horizontal_alignment = 1
-
-[node name="Status" type="Label" parent="SafeArea/Layout/Center/Content"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.82, 0.84, 0.88, 1)
-theme_override_font_sizes/font_size = 24
-text = "Responsive viewport ready"
-horizontal_alignment = 1
-
-[node name="Rule" type="HSeparator" parent="SafeArea/Layout/Center/Content"]
-layout_mode = 2
-
-[node name="Next" type="Label" parent="SafeArea/Layout/Center/Content"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.62, 0.66, 0.72, 1)
-theme_override_font_sizes/font_size = 20
-text = "Next: Hero > Movement > Collision > Camera > Touch"
-horizontal_alignment = 1
-autowrap_mode = 2
-
-[node name="BottomBar" type="HBoxContainer" parent="SafeArea/Layout"]
-layout_mode = 2
-
-[node name="ViewportReadout" type="Label" parent="SafeArea/Layout/BottomBar"]
+[node name="FullscreenButton" type="Button" parent="HUD/HUDRoot/SafeArea/SafeContent"]
 unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.48, 0.52, 0.58, 1)
-theme_override_font_sizes/font_size = 16
-text = "720 × 1280 logical viewport"
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -160.0
+offset_top = 44.0
+offset_right = 0.0
+offset_bottom = 94.0
+grow_horizontal = 0
+theme_override_font_sizes/font_size = 15
+text = "FULLSCREEN"
 
-[node name="Targets" type="Label" parent="SafeArea/Layout/BottomBar"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.48, 0.52, 0.58, 1)
-theme_override_font_sizes/font_size = 16
-text = "WEB · ANDROID"
-horizontal_alignment = 2
+[node name="Hint" type="Label" parent="HUD/HUDRoot/SafeArea/SafeContent"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 44.0
+offset_bottom = 78.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.68, 0.73, 0.82, 0.9)
+theme_override_font_sizes/font_size = 17
+text = "MOVE: WASD / ARROWS / LEFT STICK"
+horizontal_alignment = 1
+
+[node name="ViewportReadout" type="Label" parent="HUD/HUDRoot/SafeArea/SafeContent"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -28.0
+offset_right = 220.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.5, 0.56, 0.66, 1)
+theme_override_font_sizes/font_size = 14
+text = "720 x 1280"
+
+[node name="TouchLabel" type="Label" parent="HUD/HUDRoot/SafeArea/SafeContent"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 196.0
+offset_top = -44.0
+offset_right = 430.0
+offset_bottom = -10.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.58, 0.64, 0.74, 1)
+theme_override_font_sizes/font_size = 15
+text = "DRAG TO MOVE"
+
+[node name="VirtualJoystick" type="Control" parent="HUD/HUDRoot/SafeArea/SafeContent" groups=["movement_input"]]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -180.0
+offset_right = 180.0
+grow_vertical = 0
+mouse_default_cursor_shape = 2
+script = ExtResource("5_joystick")

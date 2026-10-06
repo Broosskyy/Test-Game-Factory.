@@ -57,6 +57,10 @@ jobs:
         shell: bash
         run: godot --headless --verbose --path . --editor --quit
 
+      - name: Smoke test main scene
+        shell: bash
+        run: godot --headless --verbose --path . --quit-after 10
+
       - name: Export Web
         shell: bash
         run: |
