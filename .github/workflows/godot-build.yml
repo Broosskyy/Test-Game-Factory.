@@ -62,7 +62,7 @@ jobs:
         run: |
           set -o pipefail
           godot --headless --verbose --path . --editor --quit 2>&1 | tee /tmp/godot-validate.log
-          if grep -E "SCRIPT ERROR:|Failed to load script|Parse Error:" /tmp/godot-validate.log; then
+          if grep -E "SCRIPT ERROR:|Failed to load script|Parse Error:|Invalid call|Invalid access|Attempt to call" /tmp/godot-validate.log; then
             echo "Fatal Godot script error detected during validation."
             exit 1
           fi
@@ -72,7 +72,7 @@ jobs:
         run: |
           set -o pipefail
           godot --headless --verbose --path . --quit-after 10 2>&1 | tee /tmp/godot-smoke.log
-          if grep -E "SCRIPT ERROR:|Failed to load script|Parse Error:" /tmp/godot-smoke.log; then
+          if grep -E "SCRIPT ERROR:|Failed to load script|Parse Error:|Invalid call|Invalid access|Attempt to call" /tmp/godot-smoke.log; then
             echo "Fatal Godot script error detected during runtime smoke test."
             exit 1
           fi

@@ -109,20 +109,32 @@ func _build_interface() -> void:
 
 
 func _build_topbar() -> void:
-	var topbar := PanelContainer.new()
+	var topbar := Control.new()
 	_anchor(topbar, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 78.0)
-	topbar.add_theme_stylebox_override("panel", _panel_style(Color("#071522"), Color("#244e6b"), 0))
+	topbar.z_index = 120
 	add_child(topbar)
 
-	var player_chip := PanelContainer.new()
+	var topbar_bg := Panel.new()
+	_anchor(topbar_bg, 0.0, 0.0, 1.0, 1.0)
+	topbar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	topbar_bg.add_theme_stylebox_override("panel", _panel_style(Color("#071522"), Color("#244e6b"), 0))
+	topbar.add_child(topbar_bg)
+
+	var player_chip := Control.new()
 	_anchor(player_chip, 0.012, 0.10, 0.305, 0.90)
-	player_chip.add_theme_stylebox_override("panel", _panel_style(Color("#0b1b2c"), Color("#315f83"), 16))
 	topbar.add_child(player_chip)
+
+	var chip_bg := Panel.new()
+	_anchor(chip_bg, 0.0, 0.0, 1.0, 1.0)
+	chip_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip_bg.add_theme_stylebox_override("panel", _panel_style(Color("#0b1b2c"), Color("#315f83"), 16))
+	player_chip.add_child(chip_bg)
 
 	var avatar := TextureRect.new()
 	avatar.name = "TopHeroPortrait"
 	avatar.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	avatar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_anchor(avatar, 0.018, 0.08, 0.26, 0.92)
 	player_chip.add_child(avatar)
 
@@ -138,6 +150,7 @@ func _build_topbar() -> void:
 	xp.max_value = 100
 	xp.value = 72
 	xp.show_percentage = false
+	xp.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	xp.add_theme_stylebox_override("background", _panel_style(Color("#06101a"), Color("#10293c"), 8))
 	xp.add_theme_stylebox_override("fill", _panel_style(Color("#2c9cff"), Color("#6dc8ff"), 8))
 	_anchor(xp, 0.29, 0.57, 0.80, 0.82)
@@ -446,7 +459,7 @@ func _build_damage_number() -> void:
 	damage_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.98))
 	damage_label.add_theme_constant_override("shadow_offset_x", 4)
 	damage_label.add_theme_constant_override("shadow_offset_y", 4)
-	damage_label.add_theme_font_size_override("font_size", 64)
+	damage_label.add_theme_font_size_override("font_size", 70)
 	_anchor(damage_label, 0.70, 0.32, 0.99, 0.49)
 	damage_label.rotation = deg_to_rad(-5.0)
 	damage_label.z_index = 47
@@ -555,13 +568,13 @@ func _build_combat_bottom_hud() -> void:
 	auto_button.add_theme_color_override("font_color", Color.WHITE)
 	auto_button.add_theme_stylebox_override("normal", _panel_style(Color("#071629"), Color("#168cff"), 36))
 	auto_button.add_theme_stylebox_override("pressed", _panel_style(Color("#0b2948"), Color("#67cbff"), 36))
-	_anchor(auto_button, 0.885, 0.748, 0.985, 0.835)
+	_anchor(auto_button, 1.0, 0.758, 1.0, 0.758, -94.0, 0.0, -14.0, 80.0)
 	auto_button.z_index = 29
 	auto_button.pressed.connect(_toggle_auto)
 	stage.add_child(auto_button)
 
 	var skills := HBoxContainer.new()
-	_anchor(skills, 0.045, 0.842, 0.955, 0.995)
+	_anchor(skills, 0.045, 0.846, 0.955, 0.982)
 	skills.alignment = BoxContainer.ALIGNMENT_CENTER
 	skills.add_theme_constant_override("separation", 16)
 	skills.z_index = 31
@@ -577,6 +590,7 @@ func _build_combat_bottom_hud() -> void:
 		var button := Button.new()
 		button.text = data[0]
 		button.custom_minimum_size = Vector2(104, 104)
+		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		button.focus_mode = Control.FOCUS_NONE
 		button.disabled = bool(data[2])
 		button.add_theme_font_size_override("font_size", 14)
