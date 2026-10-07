@@ -2,41 +2,24 @@
 set -euo pipefail
 
 REPO="Broosskyy/Test-Game-Factory."
-TAG="web-live"
 ASSET_NAME="test-game-factory-web.zip"
-API_URL="https://api.github.com/repos/${REPO}/releases/tags/${TAG}"
 EXPECTED_SHA="${VERCEL_GIT_COMMIT_SHA:-}"
+BRANCH="${VERCEL_GIT_COMMIT_REF:-main}"
 
 if [ -z "$EXPECTED_SHA" ]; then
   echo "VERCEL_GIT_COMMIT_SHA is not set."
   exit 1
 fi
 
-if [ "${VERCEL_GIT_COMMIT_REF:-main}" != "main" ]; then
-  echo "Preview branch detected: ${VERCEL_GIT_COMMIT_REF:-unknown}"
-  echo "Godot gameplay previews are published from validated main builds."
-  mkdir -p build/web
-  cat > build/web/index.html <<'HTML'
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Game Factory Preview</title>
-  <style>
-    html,body{height:100%;margin:0;background:#07090d;color:#eef0f4;font-family:system-ui,sans-serif}
-    body{display:grid;place-items:center}
-    main{text-align:center;padding:32px}
-    p{color:#959ba6}
-  </style>
-</head>
-<body><main><h1>GAME FACTORY</h1><p>Branch validated via GitHub CI.<br>Playable Web builds publish from main.</p></main></body>
-</html>
-HTML
-  exit 0
+if [ "$BRANCH" = "main" ]; then
+  TAG="web-live"
+else
+  TAG="web-preview-${EXPECTED_SHA}"
 fi
 
-echo "Waiting for Godot Web bundle for commit $EXPECTED_SHA"
+API_URL="https://api.github.com/repos/${REPO}/releases/tags/${TAG}"
+
+echo "Waiting for Godot Web bundle for branch $BRANCH, commit $EXPECTED_SHA, tag $TAG"
 
 release_json=""
 for attempt in $(seq 1 120); do
