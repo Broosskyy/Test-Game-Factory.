@@ -7,6 +7,7 @@ const COMBAT_ROOT := "res://assets/realm_alliance/production/"
 const V2_ROOT := "res://assets/realm_alliance/v2/"
 const V2_GAME_ROOT := "res://assets/realm_alliance/v2_game/"
 const CombatLayout = preload("res://realm_alliance/combat/gruenhain_combat_layout.gd")
+const HeroVisualRig = preload("res://realm_alliance/combat/hero_visual_rig.gd")
 
 const HERO_FILES := {
 	"idle": "hero/realmwaechter/idle.png",
@@ -15,6 +16,19 @@ const HERO_FILES := {
 	"hit": "hero/realmwaechter/hit.png",
 	"victory": "hero/realmwaechter/victory.png",
 	"defeat": "hero/realmwaechter/defeated.png",
+}
+
+# Gameplay item and visual asset stay separate from the hero body.
+# Later this can be replaced by inventory/equipment data without changing the visual rig.
+const STARTER_WEAPON := {
+	"id": "realmblade_basic",
+	"name": "Realmblade",
+	"level": 1,
+	"upgrade": 0,
+	"base_damage": 25,
+	"texture": "weapons/realmblade/blade-basic.png",
+	"grip_uv": Vector2(0.50, 0.82),
+	"base_rotation_deg": 0.0,
 }
 
 const RUN_SEQUENCE := [
@@ -97,6 +111,7 @@ var stage: Control
 # Layout slots never animate. Motion wrappers animate inside the slots.
 var hero_holder: Control
 var hero_motion: Control
+var hero_rig: Control
 var enemy_holder: Control
 var enemy_motion: Control
 var hero_art: TextureRect
@@ -380,9 +395,16 @@ func _build_stage() -> void:
 	hero_motion.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hero_holder.add_child(hero_motion)
 
-	hero_art = _make_texture_rect()
-	_anchor(hero_art, 0.0, 0.0, 1.0, 1.0)
-	hero_motion.add_child(hero_art)
+	hero_rig = HeroVisualRig.new()
+	_anchor(hero_rig, 0.0, 0.0, 1.0, 1.0)
+	hero_motion.add_child(hero_rig)
+
+	hero_art = hero_rig.body_art
+	hero_rig.set_weapon(
+		_load_combat_texture(str(STARTER_WEAPON["texture"])),
+		STARTER_WEAPON["grip_uv"],
+		float(STARTER_WEAPON["base_rotation_deg"])
+	)
 
 	enemy_holder = Control.new()
 	enemy_holder.z_index = 11
@@ -809,7 +831,7 @@ func _build_result_overlay() -> void:
 func _start_run() -> void:
 	player_hp = 100
 	player_level = 42
-	hero_damage = 25
+	hero_damage = int(STARTER_WEAPON["base_damage"])
 	encounter_index = 0
 	damage_index = 0
 	first_input_hint_available = true
@@ -1165,7 +1187,9 @@ func _apply_enemy_layout(layout: String) -> void:
 
 
 func _set_hero_state(state: String) -> void:
-	hero_art.texture = _load_combat_texture(HERO_FILES.get(state, HERO_FILES["idle"]))
+	var texture := _load_combat_texture(HERO_FILES.get(state, HERO_FILES["idle"]))
+	hero_rig.set_body_texture(texture)
+	hero_rig.set_state(state)
 
 
 func _set_enemy_state(state: String) -> void:
@@ -1204,6 +1228,7 @@ func _validate_required_assets() -> void:
 		V2_GAME_ROOT + "monsters/greenvale/states/B001_idle.png",
 		V2_ROOT + "ui_v4/upgrade_evolution_a/level_up.png",
 		V2_ROOT + "v190/rewards/chest_states/closed.png",
+		COMBAT_ROOT + str(STARTER_WEAPON["texture"]),
 	]
 
 	for path in required:
