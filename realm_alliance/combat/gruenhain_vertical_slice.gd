@@ -6,16 +6,20 @@ const LANDSCAPE_REFERENCE := Vector2i(960, 540)
 const COMBAT_ROOT := "res://assets/realm_alliance/production/"
 const V2_ROOT := "res://assets/realm_alliance/v2/"
 const V2_GAME_ROOT := "res://assets/realm_alliance/v2_game/"
+const RUNTIME_HERO_ROOT := "res://assets/realm_alliance/runtime/hero/"
 const CombatLayout = preload("res://realm_alliance/combat/gruenhain_combat_layout.gd")
 const HeroVisualRig = preload("res://realm_alliance/combat/hero_visual_rig.gd")
 
+# Clean HeroBody art never owns the gameplay weapon.
+# Attack/skill/victory use the clean idle body plus motion/weapon animation,
+# avoiding the inconsistent legacy state crops.
 const HERO_FILES := {
-	"idle": "hero/realmwaechter/idle.png",
-	"attack": "hero/realmwaechter/attack.png",
-	"skill": "hero/realmwaechter/skill.png",
-	"hit": "hero/realmwaechter/hit.png",
-	"victory": "hero/realmwaechter/victory.png",
-	"defeat": "hero/realmwaechter/defeated.png",
+	"idle": "idle.webp",
+	"attack": "idle.webp",
+	"skill": "idle.webp",
+	"hit": "hit.webp",
+	"victory": "idle.webp",
+	"defeat": "defeat.webp",
 }
 
 # Gameplay item and visual asset stay separate from the hero body.
@@ -27,7 +31,7 @@ const STARTER_WEAPON := {
 	"upgrade": 0,
 	"base_damage": 25,
 	"texture": "weapons/realmblade/blade-basic.png",
-	"grip_uv": Vector2(0.50, 0.82),
+	"grip_uv": Vector2(0.50, 0.92),
 	"base_rotation_deg": 0.0,
 }
 
@@ -89,7 +93,7 @@ const DISPLAY_DAMAGE := [5274, 2931, 8416, 2605, 6128, 3442]
 var player_hp := 100
 var player_level := 42
 var player_xp := 72
-var player_momentum := 20
+var player_momentum := 10
 var player_rage := 0
 var hero_damage := 25
 
@@ -120,6 +124,8 @@ var enemy_motion: Control
 var hero_art: TextureRect
 var enemy_art: TextureRect
 var hit_fx: TextureRect
+var _enemy_texture_size := Vector2.ONE
+var _enemy_used_rect := Rect2(Vector2.ZERO, Vector2.ONE)
 
 var world_pill: PanelContainer
 var streak_panel: PanelContainer
@@ -242,7 +248,7 @@ func _build_header() -> void:
 	header.add_child(player_chip)
 
 	var avatar := TextureRect.new()
-	avatar.texture = _load_combat_texture(HERO_FILES["idle"])
+	avatar.texture = _load_runtime_hero_texture(HERO_FILES["idle"])
 	avatar.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	avatar.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -427,8 +433,10 @@ func _build_stage() -> void:
 	enemy_motion.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	enemy_holder.add_child(enemy_motion)
 
-	enemy_art = _make_texture_rect()
-	_anchor(enemy_art, 0.0, 0.0, 1.0, 1.0)
+	enemy_art = TextureRect.new()
+	enemy_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	enemy_art.stretch_mode = TextureRect.STRETCH_SCALE
+	enemy_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	enemy_motion.add_child(enemy_art)
 
 	hit_fx = _make_texture_rect()
@@ -546,11 +554,12 @@ func _build_damage_number() -> void:
 	damage_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.98))
 	damage_label.add_theme_constant_override("shadow_offset_x", 4)
 	damage_label.add_theme_constant_override("shadow_offset_y", 4)
-	damage_label.add_theme_font_size_override("font_size", 76)
-	damage_label.rotation = deg_to_rad(-5.0)
+	damage_label.add_theme_font_size_override("font_size", 54)
+	damage_label.rotation = deg_to_rad(-4.0)
 	damage_label.z_index = 47
 	damage_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stage.add_child(damage_label)
+	_anchor(damage_label, 0.04, -0.12, 0.96, 0.28)
+	enemy_holder.add_child(damage_label)
 
 
 func _build_combat_bottom_hud() -> void:
@@ -940,7 +949,7 @@ func _attack() -> void:
 	await get_tree().create_timer(0.115).timeout
 
 	enemy_hp = maxi(0, enemy_hp - hero_damage)
-	player_momentum = mini(100, player_momentum + 12)
+	player_momentum = mini(100, player_momentum + 5)
 	_set_enemy_state("hit")
 	enemy_art.modulate = Color(1.35, 1.35, 1.35, 1.0)
 	_show_hit_fx()
@@ -984,8 +993,8 @@ func _attack() -> void:
 
 	var incoming_damage := int(current_enemy["enemy_damage"])
 	player_hp = maxi(0, player_hp - incoming_damage)
-	player_momentum = maxi(0, player_momentum - 8)
-	player_rage = mini(100, player_rage + 10 + incoming_damage * 2)
+	player_momentum = maxi(0, player_momentum - 4)
+	player_rage = mini(100, player_rage + 3 + incoming_damage)
 	_set_hero_state("hit")
 	hero_art.modulate = Color(1.25, 0.68, 0.68, 1.0)
 	_refresh_player_hud()
@@ -1235,17 +1244,20 @@ func _refresh_player_hud() -> void:
 func _award_enemy_progression() -> void:
 	var tier := str(current_enemy.get("tier", "NORMAL"))
 	var xp_gain := 10
-	var rage_gain := 6
+	var momentum_gain := 3
+	var rage_gain := 2
 
 	if tier == "ELITE":
 		xp_gain = 14
-		rage_gain = 10
+		momentum_gain = 5
+		rage_gain = 4
 	elif tier == "BOSS":
 		xp_gain = 20
-		rage_gain = 16
+		momentum_gain = 8
+		rage_gain = 6
 
 	player_xp += xp_gain
-	player_momentum = mini(100, player_momentum + 8)
+	player_momentum = mini(100, player_momentum + momentum_gain)
 	player_rage = mini(100, player_rage + rage_gain)
 	_refresh_player_hud()
 
@@ -1264,7 +1276,6 @@ func _apply_master_layout() -> void:
 	CombatLayout.apply_slot(streak_panel, profile["streak"])
 	CombatLayout.apply_slot(enemy_hud, profile["enemy_hud"])
 	CombatLayout.apply_slot(hero_holder, profile["hero"])
-	CombatLayout.apply_slot(damage_label, profile["damage"])
 	CombatLayout.apply_slot(hit_fx, profile["hit_fx"])
 	CombatLayout.apply_slot(bottom_backing, profile["bottom_backing"])
 	CombatLayout.apply_slot(vitals_row, profile["vitals"])
@@ -1275,6 +1286,8 @@ func _apply_master_layout() -> void:
 		_apply_enemy_layout(str(current_enemy["layout"]))
 	else:
 		CombatLayout.apply_slot(enemy_holder, profile["normal"])
+
+	call_deferred("_apply_enemy_art_layout")
 
 
 func _apply_enemy_layout(layout: String) -> void:
@@ -1288,12 +1301,13 @@ func _apply_enemy_layout(layout: String) -> void:
 
 	CombatLayout.apply_slot(enemy_holder, profile[slot_key])
 	enemy_motion.position = Vector2.ZERO
+	call_deferred("_apply_enemy_art_layout")
 
 
 func _set_hero_state(state: String) -> void:
-	var texture := _load_combat_texture(HERO_FILES.get(state, HERO_FILES["idle"]))
-	hero_rig.set_body_texture(texture)
+	var texture := _load_runtime_hero_texture(HERO_FILES.get(state, HERO_FILES["idle"]))
 	hero_rig.set_state(state)
+	hero_rig.set_body_texture(texture)
 
 
 func _set_enemy_state(state: String) -> void:
@@ -1302,7 +1316,56 @@ func _set_enemy_state(state: String) -> void:
 
 	var id := str(current_enemy["id"])
 	var path := "monsters/greenvale/states/%s_%s.png" % [id, state]
-	enemy_art.texture = _load_game_texture(path)
+	var texture := _load_game_texture(path)
+	enemy_art.texture = texture
+	_capture_enemy_texture_bounds(texture)
+	_apply_enemy_art_layout()
+
+
+func _capture_enemy_texture_bounds(texture: Texture2D) -> void:
+	if texture == null:
+		_enemy_texture_size = Vector2.ONE
+		_enemy_used_rect = Rect2(Vector2.ZERO, Vector2.ONE)
+		return
+
+	_enemy_texture_size = texture.get_size()
+	_enemy_used_rect = Rect2(Vector2.ZERO, _enemy_texture_size)
+
+	var image: Image = texture.get_image()
+	if image == null or image.get_width() <= 0 or image.get_height() <= 0:
+		return
+
+	var used_i: Rect2i = image.get_used_rect()
+	if used_i.size.x <= 0 or used_i.size.y <= 0:
+		return
+
+	_enemy_used_rect = Rect2(Vector2(used_i.position), Vector2(used_i.size))
+
+
+func _apply_enemy_art_layout() -> void:
+	if enemy_art == null or enemy_motion == null:
+		return
+	if enemy_motion.size.x <= 1.0 or enemy_motion.size.y <= 1.0:
+		return
+	if _enemy_used_rect.size.x <= 0.0 or _enemy_used_rect.size.y <= 0.0:
+		return
+
+	var target_height := enemy_motion.size.y * 0.94
+	var scale_factor := target_height / _enemy_used_rect.size.y
+	var max_visible_width := enemy_motion.size.x * 1.16
+
+	if _enemy_used_rect.size.x * scale_factor > max_visible_width:
+		scale_factor = max_visible_width / _enemy_used_rect.size.x
+
+	var render_size := _enemy_texture_size * scale_factor
+	var used_center_x := (_enemy_used_rect.position.x + _enemy_used_rect.size.x * 0.5) * scale_factor
+	var used_bottom := (_enemy_used_rect.position.y + _enemy_used_rect.size.y) * scale_factor
+
+	enemy_art.size = render_size
+	enemy_art.position = Vector2(
+		enemy_motion.size.x * 0.5 - used_center_x,
+		enemy_motion.size.y * 0.985 - used_bottom
+	)
 
 
 func _toggle_auto() -> void:
@@ -1333,6 +1396,9 @@ func _validate_required_assets() -> void:
 		V2_ROOT + "ui_v4/upgrade_evolution_a/level_up.png",
 		V2_ROOT + "v190/rewards/chest_states/closed.png",
 		COMBAT_ROOT + str(STARTER_WEAPON["texture"]),
+		RUNTIME_HERO_ROOT + HERO_FILES["idle"],
+		RUNTIME_HERO_ROOT + HERO_FILES["hit"],
+		RUNTIME_HERO_ROOT + HERO_FILES["defeat"],
 	]
 
 	for path in required:
@@ -1351,6 +1417,14 @@ func _validate_layout_contract() -> void:
 
 			if abs(bottom - ground_line) > 0.035:
 				push_error("COMBAT LAYOUT ERROR: %s bottom %.3f differs from ground line %.3f" % [slot_name, bottom, ground_line])
+
+
+func _load_runtime_hero_texture(relative_path: String) -> Texture2D:
+	var path := RUNTIME_HERO_ROOT + relative_path
+	if not ResourceLoader.exists(path):
+		push_error("Missing runtime hero asset: " + path)
+		return null
+	return load(path) as Texture2D
 
 
 func _load_combat_texture(relative_path: String) -> Texture2D:

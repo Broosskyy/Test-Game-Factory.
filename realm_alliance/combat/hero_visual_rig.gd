@@ -1,45 +1,45 @@
 extends Control
 class_name HeroVisualRig
 
-# Visual composition only. Gameplay stats/items live outside this rig.
-# The rig keeps future customization modular while the current slice activates
-# only Body + Weapon.
+# Visual composition only. Gameplay items/stats live outside this rig.
+# Body and equipment remain separate, but alpha-bound normalization keeps them
+# visually locked together across differently cropped source images.
 
 const WEAPON_SOCKETS := {
 	"idle": {
-		"position": Vector2(0.64, 0.58),
-		"rotation_deg": 22.0,
-		"extent": 0.82,
+		"position": Vector2(0.42, 0.69),
+		"rotation_deg": 135.0,
+		"extent": 0.64,
 		"draw_front": true,
 	},
 	"attack": {
-		"position": Vector2(0.62, 0.50),
-		"rotation_deg": -34.0,
-		"extent": 0.90,
+		"position": Vector2(0.45, 0.66),
+		"rotation_deg": 70.0,
+		"extent": 0.78,
 		"draw_front": true,
 	},
 	"skill": {
-		"position": Vector2(0.60, 0.47),
-		"rotation_deg": -42.0,
-		"extent": 0.94,
-		"draw_front": true,
-	},
-	"hit": {
-		"position": Vector2(0.64, 0.57),
-		"rotation_deg": 34.0,
+		"position": Vector2(0.47, 0.61),
+		"rotation_deg": 42.0,
 		"extent": 0.82,
 		"draw_front": true,
 	},
+	"hit": {
+		"position": Vector2(0.74, 0.63),
+		"rotation_deg": 120.0,
+		"extent": 0.60,
+		"draw_front": true,
+	},
 	"victory": {
-		"position": Vector2(0.57, 0.35),
-		"rotation_deg": -118.0,
-		"extent": 0.92,
+		"position": Vector2(0.47, 0.47),
+		"rotation_deg": 4.0,
+		"extent": 0.72,
 		"draw_front": true,
 	},
 	"defeat": {
-		"position": Vector2(0.59, 0.68),
-		"rotation_deg": 76.0,
-		"extent": 0.78,
+		"position": Vector2(0.58, 0.88),
+		"rotation_deg": 88.0,
+		"extent": 0.58,
 		"draw_front": true,
 	},
 }
@@ -56,8 +56,13 @@ var headgear_art: TextureRect
 var aura_front_art: TextureRect
 
 var _state := "idle"
-var _weapon_grip_uv := Vector2(0.50, 0.82)
+var _weapon_grip_uv := Vector2(0.50, 0.92)
 var _weapon_base_rotation_deg := 0.0
+
+var _body_texture_size := Vector2.ONE
+var _body_used_rect := Rect2(Vector2.ZERO, Vector2.ONE)
+var _weapon_texture_size := Vector2.ONE
+var _weapon_used_rect := Rect2(Vector2.ZERO, Vector2.ONE)
 
 
 func _init() -> void:
@@ -66,13 +71,13 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	if not resized.is_connected(_apply_socket_layout):
-		resized.connect(_apply_socket_layout)
-	_apply_socket_layout()
+	if not resized.is_connected(_apply_layout):
+		resized.connect(_apply_layout)
+	_apply_layout()
 
 
 func _build_layers() -> void:
-	aura_back_art = _make_layer("AuraBack", -4)
+	aura_back_art = _make_fill_layer("AuraBack", -4)
 	add_child(aura_back_art)
 
 	back_socket = Control.new()
@@ -82,14 +87,18 @@ func _build_layers() -> void:
 	back_socket.z_index = -3
 	add_child(back_socket)
 
-	wings_art = _make_layer("Wings", 0)
+	wings_art = _make_fill_layer("Wings", 0)
 	back_socket.add_child(wings_art)
 
-	body_art = _make_layer("Body", 0)
+	body_art = TextureRect.new()
+	body_art.name = "Body"
+	body_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	body_art.stretch_mode = TextureRect.STRETCH_SCALE
+	body_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body_art.z_index = 0
 	add_child(body_art)
 
-	# Complete armor/outfit visual. Kept empty for the current slice.
-	outfit_art = _make_layer("Outfit", 1)
+	outfit_art = _make_fill_layer("Outfit", 1)
 	add_child(outfit_art)
 
 	weapon_socket = Control.new()
@@ -101,7 +110,7 @@ func _build_layers() -> void:
 	weapon_art = TextureRect.new()
 	weapon_art.name = "Weapon"
 	weapon_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	weapon_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	weapon_art.stretch_mode = TextureRect.STRETCH_SCALE
 	weapon_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	weapon_socket.add_child(weapon_art)
 
@@ -112,28 +121,37 @@ func _build_layers() -> void:
 	head_socket.z_index = 4
 	add_child(head_socket)
 
-	headgear_art = _make_layer("Headgear", 0)
+	headgear_art = _make_fill_layer("Headgear", 0)
 	head_socket.add_child(headgear_art)
 
-	aura_front_art = _make_layer("AuraFront", 5)
+	aura_front_art = _make_fill_layer("AuraFront", 5)
 	add_child(aura_front_art)
 
 
 func set_body_texture(texture: Texture2D) -> void:
 	body_art.texture = texture
+	var geometry := _texture_geometry(texture)
+	_body_texture_size = geometry["size"]
+	_body_used_rect = geometry["used"]
+	_apply_body_layout()
 
 
 func set_weapon(texture: Texture2D, grip_uv: Vector2, base_rotation_deg: float = 0.0) -> void:
 	weapon_art.texture = texture
 	_weapon_grip_uv = grip_uv
 	_weapon_base_rotation_deg = base_rotation_deg
+
+	var geometry := _texture_geometry(texture)
+	_weapon_texture_size = geometry["size"]
+	_weapon_used_rect = geometry["used"]
+
 	weapon_art.visible = texture != null
-	_apply_socket_layout()
+	_apply_weapon_layout()
 
 
 func set_state(state: String) -> void:
 	_state = state if WEAPON_SOCKETS.has(state) else "idle"
-	_apply_socket_layout()
+	_apply_layout()
 
 
 func set_outfit(texture: Texture2D) -> void:
@@ -165,10 +183,47 @@ func clear_cosmetics() -> void:
 	set_aura(null, null)
 
 
-func _apply_socket_layout() -> void:
+func _apply_layout() -> void:
+	_apply_body_layout()
+	_apply_weapon_layout()
+
+
+func _apply_body_layout() -> void:
+	if body_art == null:
+		return
+	if size.x <= 1.0 or size.y <= 1.0:
+		return
+	if _body_used_rect.size.x <= 0.0 or _body_used_rect.size.y <= 0.0:
+		return
+
+	var target_height := size.y * 0.96
+	var max_visible_width := size.x * 1.58
+
+	if _state == "defeat":
+		target_height = size.y * 0.58
+		max_visible_width = size.x * 1.82
+
+	var scale_factor := target_height / _body_used_rect.size.y
+	if _body_used_rect.size.x * scale_factor > max_visible_width:
+		scale_factor = max_visible_width / _body_used_rect.size.x
+
+	var render_size := _body_texture_size * scale_factor
+	var used_center_x := (_body_used_rect.position.x + _body_used_rect.size.x * 0.5) * scale_factor
+	var used_bottom := (_body_used_rect.position.y + _body_used_rect.size.y) * scale_factor
+
+	body_art.size = render_size
+	body_art.position = Vector2(
+		size.x * 0.5 - used_center_x,
+		size.y * 0.985 - used_bottom
+	)
+
+
+func _apply_weapon_layout() -> void:
 	if weapon_socket == null or weapon_art == null:
 		return
-	if size.x <= 0.0 or size.y <= 0.0:
+	if size.x <= 1.0 or size.y <= 1.0:
+		return
+	if _weapon_used_rect.size.x <= 0.0 or _weapon_used_rect.size.y <= 0.0:
 		return
 
 	var spec: Dictionary = WEAPON_SOCKETS.get(_state, WEAPON_SOCKETS["idle"])
@@ -177,13 +232,43 @@ func _apply_socket_layout() -> void:
 	weapon_socket.rotation = deg_to_rad(_weapon_base_rotation_deg + float(spec["rotation_deg"]))
 	weapon_socket.z_index = 3 if bool(spec["draw_front"]) else -1
 
-	var extent := minf(size.x, size.y) * float(spec["extent"])
-	weapon_art.size = Vector2(extent, extent)
-	# The grip point becomes local (0,0), so rotation happens around the hand.
-	weapon_art.position = -Vector2(extent * _weapon_grip_uv.x, extent * _weapon_grip_uv.y)
+	var target_extent := minf(size.x, size.y) * float(spec["extent"])
+	var max_used_dimension := maxf(_weapon_used_rect.size.x, _weapon_used_rect.size.y)
+	var scale_factor := target_extent / max_used_dimension
+	var render_size := _weapon_texture_size * scale_factor
+
+	var grip_in_texture := _weapon_used_rect.position + Vector2(
+		_weapon_used_rect.size.x * _weapon_grip_uv.x,
+		_weapon_used_rect.size.y * _weapon_grip_uv.y
+	)
+
+	weapon_art.size = render_size
+	weapon_art.position = -grip_in_texture * scale_factor
 
 
-func _make_layer(layer_name: String, layer_z: int) -> TextureRect:
+func _texture_geometry(texture: Texture2D) -> Dictionary:
+	if texture == null:
+		return {
+			"size": Vector2.ONE,
+			"used": Rect2(Vector2.ZERO, Vector2.ONE),
+		}
+
+	var texture_size := texture.get_size()
+	var used := Rect2(Vector2.ZERO, texture_size)
+	var image: Image = texture.get_image()
+
+	if image != null and image.get_width() > 0 and image.get_height() > 0:
+		var used_i: Rect2i = image.get_used_rect()
+		if used_i.size.x > 0 and used_i.size.y > 0:
+			used = Rect2(Vector2(used_i.position), Vector2(used_i.size))
+
+	return {
+		"size": texture_size,
+		"used": used,
+	}
+
+
+func _make_fill_layer(layer_name: String, layer_z: int) -> TextureRect:
 	var layer := TextureRect.new()
 	layer.name = layer_name
 	layer.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -191,7 +276,7 @@ func _make_layer(layer_name: String, layer_z: int) -> TextureRect:
 	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.z_index = layer_z
 	_fill(layer)
-	layer.visible = layer_name == "Body"
+	layer.visible = false
 	return layer
 
 
