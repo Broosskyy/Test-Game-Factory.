@@ -6,6 +6,7 @@ const LANDSCAPE_REFERENCE := Vector2i(960, 540)
 const COMBAT_ROOT := "res://assets/realm_alliance/production/"
 const V2_ROOT := "res://assets/realm_alliance/v2/"
 const V2_GAME_ROOT := "res://assets/realm_alliance/v2_game/"
+const CombatLayout = preload("res://realm_alliance/combat/gruenhain_combat_layout.gd")
 
 const HERO_FILES := {
 	"idle": "hero/realmwaechter/idle.png",
@@ -92,11 +93,22 @@ var _profile_initialized := false
 var _applying_profile := false
 
 var stage: Control
+
+# Layout slots never animate. Motion wrappers animate inside the slots.
 var hero_holder: Control
+var hero_motion: Control
 var enemy_holder: Control
+var enemy_motion: Control
 var hero_art: TextureRect
 var enemy_art: TextureRect
 var hit_fx: TextureRect
+
+var world_pill: PanelContainer
+var streak_panel: PanelContainer
+var enemy_hud: PanelContainer
+var bottom_backing: ColorRect
+var vitals_row: HBoxContainer
+var skills_row: HBoxContainer
 
 var enemy_name_label: Label
 var enemy_tier_label: Label
@@ -128,6 +140,7 @@ func _ready() -> void:
 
 	_build_interface()
 	_validate_required_assets()
+	_validate_layout_contract()
 	_start_run()
 
 
@@ -165,6 +178,9 @@ func _apply_orientation_profile() -> void:
 	get_window().content_scale_size = LANDSCAPE_REFERENCE if is_landscape else PORTRAIT_REFERENCE
 
 	_applying_profile = false
+
+	if stage != null:
+		_apply_master_layout()
 
 
 func _build_interface() -> void:
@@ -319,8 +335,7 @@ func _build_stage() -> void:
 	shade.z_index = 2
 	stage.add_child(shade)
 
-	var world_pill := PanelContainer.new()
-	_anchor(world_pill, 0.22, 0.018, 0.78, 0.082)
+	world_pill = PanelContainer.new()
 	world_pill.z_index = 30
 	world_pill.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.08, 0.13, 0.94), Color("#35678c"), 24))
 	stage.add_child(world_pill)
@@ -342,11 +357,10 @@ func _build_stage() -> void:
 	progress_label.add_theme_font_size_override("font_size", 15)
 	world_row.add_child(progress_label)
 
-	var streak := PanelContainer.new()
-	_anchor(streak, 0.018, 0.105, 0.25, 0.185)
-	streak.z_index = 31
-	streak.add_theme_stylebox_override("panel", _panel_style(Color(0.05, 0.08, 0.10, 0.90), Color("#80602c"), 12))
-	stage.add_child(streak)
+	streak_panel = PanelContainer.new()
+	streak_panel.z_index = 31
+	streak_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.05, 0.08, 0.10, 0.90), Color("#80602c"), 12))
+	stage.add_child(streak_panel)
 
 	var streak_text := Label.new()
 	streak_text.text = "12ER SIEGESSERIE\n+24% GOLD  +18% XP"
@@ -354,30 +368,38 @@ func _build_stage() -> void:
 	streak_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	streak_text.add_theme_color_override("font_color", Color("#ffe39d"))
 	streak_text.add_theme_font_size_override("font_size", 12)
-	streak.add_child(streak_text)
+	streak_panel.add_child(streak_text)
 
 	hero_holder = Control.new()
-	_anchor(hero_holder, 0.045, 0.47, 0.37, 0.85)
 	hero_holder.z_index = 12
 	hero_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(hero_holder)
 
+	hero_motion = Control.new()
+	_anchor(hero_motion, 0.0, 0.0, 1.0, 1.0)
+	hero_motion.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hero_holder.add_child(hero_motion)
+
 	hero_art = _make_texture_rect()
 	_anchor(hero_art, 0.0, 0.0, 1.0, 1.0)
-	hero_holder.add_child(hero_art)
+	hero_motion.add_child(hero_art)
 
 	enemy_holder = Control.new()
 	enemy_holder.z_index = 11
 	enemy_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(enemy_holder)
 
+	enemy_motion = Control.new()
+	_anchor(enemy_motion, 0.0, 0.0, 1.0, 1.0)
+	enemy_motion.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	enemy_holder.add_child(enemy_motion)
+
 	enemy_art = _make_texture_rect()
 	_anchor(enemy_art, 0.0, 0.0, 1.0, 1.0)
-	enemy_holder.add_child(enemy_art)
+	enemy_motion.add_child(enemy_art)
 
 	hit_fx = _make_texture_rect()
 	hit_fx.texture = _load_v2_texture("v190/vfx/combat_impacts/nature_impact.png")
-	_anchor(hit_fx, 0.50, 0.31, 1.02, 0.72)
 	hit_fx.z_index = 17
 	hit_fx.visible = false
 	stage.add_child(hit_fx)
@@ -403,22 +425,22 @@ func _build_stage() -> void:
 	attack_hint.add_theme_constant_override("shadow_offset_x", 2)
 	attack_hint.add_theme_constant_override("shadow_offset_y", 2)
 	attack_hint.add_theme_font_size_override("font_size", 14)
-	_anchor(attack_hint, 0.31, 0.675, 0.69, 0.715)
 	attack_hint.z_index = 32
 	attack_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(attack_hint)
 
+	_apply_master_layout()
+
 
 func _build_enemy_hud() -> void:
-	var hud := PanelContainer.new()
-	_anchor(hud, 0.265, 0.092, 0.735, 0.185)
-	hud.z_index = 40
-	hud.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.065, 0.105, 0.96), Color("#4c7694"), 15))
-	stage.add_child(hud)
+	enemy_hud = PanelContainer.new()
+	enemy_hud.z_index = 40
+	enemy_hud.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.065, 0.105, 0.96), Color("#4c7694"), 15))
+	stage.add_child(enemy_hud)
 
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)
-	hud.add_child(box)
+	enemy_hud.add_child(box)
 
 	var title := HBoxContainer.new()
 	title.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -492,7 +514,6 @@ func _build_damage_number() -> void:
 	damage_label.add_theme_constant_override("shadow_offset_x", 4)
 	damage_label.add_theme_constant_override("shadow_offset_y", 4)
 	damage_label.add_theme_font_size_override("font_size", 76)
-	_anchor(damage_label, 0.655, 0.31, 0.995, 0.515)
 	damage_label.rotation = deg_to_rad(-5.0)
 	damage_label.z_index = 47
 	damage_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -500,18 +521,16 @@ func _build_damage_number() -> void:
 
 
 func _build_combat_bottom_hud() -> void:
-	var bottom := ColorRect.new()
-	_anchor(bottom, 0.0, 0.715, 1.0, 1.0)
-	bottom.color = Color(0.015, 0.04, 0.065, 0.78)
-	bottom.z_index = 8
-	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stage.add_child(bottom)
+	bottom_backing = ColorRect.new()
+	bottom_backing.color = Color(0.015, 0.04, 0.065, 0.78)
+	bottom_backing.z_index = 8
+	bottom_backing.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stage.add_child(bottom_backing)
 
-	var vitals := HBoxContainer.new()
-	_anchor(vitals, 0.025, 0.725, 0.865, 0.795)
-	vitals.add_theme_constant_override("separation", 8)
-	vitals.z_index = 28
-	stage.add_child(vitals)
+	vitals_row = HBoxContainer.new()
+	vitals_row.add_theme_constant_override("separation", 8)
+	vitals_row.z_index = 28
+	stage.add_child(vitals_row)
 
 	var hp_card := PanelContainer.new()
 	hp_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -547,7 +566,7 @@ func _build_combat_bottom_hud() -> void:
 	_anchor(player_hp_text, 0.0, 0.0, 1.0, 1.0)
 	hp_wrap.add_child(player_hp_text)
 
-	vitals.add_child(hp_card)
+	vitals_row.add_child(hp_card)
 
 	for stat in [["MOMENTUM", "68%", "#a34cff"], ["ZORN", "42%", "#ff8b23"]]:
 		var card := PanelContainer.new()
@@ -574,7 +593,7 @@ func _build_combat_bottom_hud() -> void:
 		bar.add_theme_stylebox_override("fill", _panel_style(Color(stat[2]), Color(stat[2]).lightened(0.2), 8))
 		box.add_child(bar)
 
-		vitals.add_child(card)
+		vitals_row.add_child(card)
 
 	auto_button = Button.new()
 	auto_button.text = ""
@@ -587,12 +606,11 @@ func _build_combat_bottom_hud() -> void:
 	stage.add_child(auto_button)
 	_decorate_icon_button(auto_button, "ui_v4/combat_core/auto.png", "AUTO", false)
 
-	var skills := HBoxContainer.new()
-	_anchor(skills, 0.035, 0.812, 0.965, 0.965)
-	skills.alignment = BoxContainer.ALIGNMENT_CENTER
-	skills.add_theme_constant_override("separation", 16)
-	skills.z_index = 31
-	stage.add_child(skills)
+	skills_row = HBoxContainer.new()
+	skills_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	skills_row.add_theme_constant_override("separation", 16)
+	skills_row.z_index = 31
+	stage.add_child(skills_row)
 
 	var skill_data := [
 		["ui_v4/combat_core/attack.png", "2.5", "#2e83ff", false],
@@ -613,7 +631,7 @@ func _build_combat_bottom_hud() -> void:
 		button.add_theme_stylebox_override("disabled", _panel_style(Color("#111821"), Color(data[2]), 58))
 		if not bool(data[3]):
 			button.pressed.connect(_attack)
-		skills.add_child(button)
+		skills_row.add_child(button)
 		_decorate_icon_button(button, data[0], data[1], bool(data[3]))
 
 
@@ -805,7 +823,11 @@ func _start_run() -> void:
 	result_overlay.visible = false
 
 	hero_art.modulate = Color.WHITE
-	hero_holder.position = Vector2.ZERO
+	hero_motion.position = Vector2.ZERO
+	hero_motion.modulate = Color.WHITE
+	enemy_motion.position = Vector2.ZERO
+	enemy_motion.modulate = Color.WHITE
+	_apply_master_layout()
 	_set_hero_state("idle")
 
 	if auto_button != null:
@@ -828,13 +850,12 @@ func _start_encounter(index: int) -> void:
 	_apply_enemy_layout(str(current_enemy["layout"]))
 	_set_enemy_state("idle")
 
-	var enemy_spawn_position := enemy_holder.position
-	enemy_holder.position = enemy_spawn_position + Vector2(26, 6)
-	enemy_holder.modulate = Color(1, 1, 1, 0)
+	enemy_motion.position = Vector2(26, 6)
+	enemy_motion.modulate = Color(1, 1, 1, 0)
 	var spawn_tween := create_tween()
 	spawn_tween.set_parallel(true)
-	spawn_tween.tween_property(enemy_holder, "modulate:a", 1.0, 0.22)
-	spawn_tween.tween_property(enemy_holder, "position", enemy_spawn_position, 0.26).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	spawn_tween.tween_property(enemy_motion, "modulate:a", 1.0, 0.22)
+	spawn_tween.tween_property(enemy_motion, "position", Vector2.ZERO, 0.26).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 	attack_hint.visible = encounter_index == 0 and first_input_hint_available
 	_refresh_enemy_hud()
@@ -850,10 +871,10 @@ func _attack() -> void:
 
 	_set_hero_state("attack")
 
-	var hero_start := hero_holder.position
+	var hero_start := hero_motion.position
 	var hero_tween := create_tween()
-	hero_tween.tween_property(hero_holder, "position", hero_start + Vector2(20, -3), 0.10)
-	hero_tween.tween_property(hero_holder, "position", hero_start, 0.13)
+	hero_tween.tween_property(hero_motion, "position", hero_start + Vector2(20, -3), 0.10)
+	hero_tween.tween_property(hero_motion, "position", hero_start, 0.13)
 
 	await get_tree().create_timer(0.11).timeout
 
@@ -864,11 +885,11 @@ func _attack() -> void:
 	_show_damage()
 	_refresh_enemy_hud()
 
-	var enemy_start := enemy_holder.position
+	var enemy_start := enemy_motion.position
 	var recoil := create_tween()
-	recoil.tween_property(enemy_holder, "position", enemy_start + Vector2(18, -2), 0.055)
-	recoil.tween_property(enemy_holder, "position", enemy_start - Vector2(4, 0), 0.06)
-	recoil.tween_property(enemy_holder, "position", enemy_start, 0.085)
+	recoil.tween_property(enemy_motion, "position", enemy_start + Vector2(18, -2), 0.055)
+	recoil.tween_property(enemy_motion, "position", enemy_start - Vector2(4, 0), 0.06)
+	recoil.tween_property(enemy_motion, "position", enemy_start, 0.085)
 
 	var flash_tween := create_tween()
 	flash_tween.tween_property(enemy_art, "modulate", Color.WHITE, 0.14)
@@ -890,10 +911,10 @@ func _attack() -> void:
 	hero_art.modulate = Color(1.25, 0.68, 0.68, 1.0)
 	_refresh_player_hud()
 
-	var hero_hit_start := hero_holder.position
+	var hero_hit_start := hero_motion.position
 	var hero_hit_tween := create_tween()
-	hero_hit_tween.tween_property(hero_holder, "position", hero_hit_start - Vector2(14, 1), 0.06)
-	hero_hit_tween.tween_property(hero_holder, "position", hero_hit_start, 0.10)
+	hero_hit_tween.tween_property(hero_motion, "position", hero_hit_start - Vector2(14, 1), 0.06)
+	hero_hit_tween.tween_property(hero_motion, "position", hero_hit_start, 0.10)
 
 	await get_tree().create_timer(0.14).timeout
 	hero_art.modulate = Color.WHITE
@@ -915,11 +936,11 @@ func _handle_enemy_defeat() -> void:
 	run_mode = "transition"
 	attack_hint.visible = false
 
-	var defeated_start := enemy_holder.position
+	var defeated_start := enemy_motion.position
 	var defeat_tween := create_tween()
 	defeat_tween.set_parallel(true)
-	defeat_tween.tween_property(enemy_holder, "position", defeated_start + Vector2(0, 16), 0.30).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	defeat_tween.tween_property(enemy_holder, "modulate:a", 0.28, 0.30)
+	defeat_tween.tween_property(enemy_motion, "position", defeated_start + Vector2(0, 16), 0.30).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	defeat_tween.tween_property(enemy_motion, "modulate:a", 0.28, 0.30)
 	await defeat_tween.finished
 
 	var burst := _make_texture_rect()
@@ -1103,14 +1124,44 @@ func _refresh_player_hud() -> void:
 	player_hp_text.text = "%s / 1.420" % _format_thousands(visible_hp)
 
 
+func _layout_profile() -> Dictionary:
+	return CombatLayout.profile(_last_landscape)
+
+
+func _apply_master_layout() -> void:
+	if stage == null:
+		return
+
+	var profile := _layout_profile()
+
+	CombatLayout.apply_slot(world_pill, profile["world_pill"])
+	CombatLayout.apply_slot(streak_panel, profile["streak"])
+	CombatLayout.apply_slot(enemy_hud, profile["enemy_hud"])
+	CombatLayout.apply_slot(hero_holder, profile["hero"])
+	CombatLayout.apply_slot(damage_label, profile["damage"])
+	CombatLayout.apply_slot(hit_fx, profile["hit_fx"])
+	CombatLayout.apply_slot(bottom_backing, profile["bottom_backing"])
+	CombatLayout.apply_slot(vitals_row, profile["vitals"])
+	CombatLayout.apply_slot(skills_row, profile["skills"])
+	CombatLayout.apply_slot(attack_hint, profile["attack_hint"])
+
+	if not current_enemy.is_empty():
+		_apply_enemy_layout(str(current_enemy["layout"]))
+	else:
+		CombatLayout.apply_slot(enemy_holder, profile["normal"])
+
+
 func _apply_enemy_layout(layout: String) -> void:
-	match layout:
-		"boss":
-			_anchor(enemy_holder, 0.255, 0.245, 1.055, 0.925)
-		"elite":
-			_anchor(enemy_holder, 0.35, 0.295, 1.035, 0.90)
-		_:
-			_anchor(enemy_holder, 0.415, 0.335, 1.015, 0.88)
+	var profile := _layout_profile()
+	var slot_key := "normal"
+
+	if layout == "elite":
+		slot_key = "elite"
+	elif layout == "boss":
+		slot_key = "boss"
+
+	CombatLayout.apply_slot(enemy_holder, profile[slot_key])
+	enemy_motion.position = Vector2.ZERO
 
 
 func _set_hero_state(state: String) -> void:
@@ -1158,6 +1209,19 @@ func _validate_required_assets() -> void:
 	for path in required:
 		if not ResourceLoader.exists(path):
 			push_error("Missing Grünhain vertical-slice asset: " + path)
+
+
+func _validate_layout_contract() -> void:
+	for landscape in [false, true]:
+		var profile := CombatLayout.profile(landscape)
+		var ground_line := float(profile["ground_line"])
+
+		for slot_name in ["hero", "normal", "elite", "boss"]:
+			var rect: Rect2 = profile[slot_name]
+			var bottom := rect.position.y + rect.size.y
+
+			if abs(bottom - ground_line) > 0.035:
+				push_error("COMBAT LAYOUT ERROR: %s bottom %.3f differs from ground line %.3f" % [slot_name, bottom, ground_line])
 
 
 func _load_combat_texture(relative_path: String) -> Texture2D:
