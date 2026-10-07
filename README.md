@@ -36,3 +36,10 @@ Runtime assets are pinned to exact commits from `Broosskyy/Realm-Alliance`. Pres
 ## Core principle
 
 > Finish one small run to Play-Store quality first. Scale content and extract reusable systems only after the run is stable and polished.
+
+
+## Locked combat layout
+
+The active slice uses a fixed master layout contract. Do not tune actor anchors ad hoc from individual screenshots.
+
+See `docs/GRUENHAIN_COMBAT_MASTER_LOCK.md` and `realm_alliance/combat/gruenhain_combat_layout.gd`.
