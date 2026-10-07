@@ -17,7 +17,7 @@ const HERO_FILES := {
 	"idle": "idle.webp",
 	"attack": "idle.webp",
 	"skill": "idle.webp",
-	"hit": "hit.webp",
+	"hit": "idle.webp",
 	"victory": "idle.webp",
 	"defeat": "defeat.webp",
 }
@@ -1306,8 +1306,9 @@ func _apply_enemy_layout(layout: String) -> void:
 
 func _set_hero_state(state: String) -> void:
 	var texture := _load_runtime_hero_texture(HERO_FILES.get(state, HERO_FILES["idle"]))
-	hero_rig.set_state(state)
+	# Body first, then state: the socket is resolved from the current body's texture space.
 	hero_rig.set_body_texture(texture)
+	hero_rig.set_state(state)
 
 
 func _set_enemy_state(state: String) -> void:

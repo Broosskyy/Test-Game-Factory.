@@ -6,40 +6,42 @@ class_name HeroVisualRig
 # visually locked together across differently cropped source images.
 
 const WEAPON_SOCKETS := {
+	# hand_uv is measured in the HeroBody texture, not in the outer combat slot.
+	# This keeps the sword attached to the same hand in portrait and landscape.
 	"idle": {
-		"position": Vector2(0.42, 0.69),
-		"rotation_deg": 135.0,
-		"extent": 0.64,
-		"draw_front": true,
+		"hand_uv": Vector2(0.742, 0.565),
+		"rotation_deg": 90.0,
+		"length_ratio": 0.55,
+		"draw_front": false,
 	},
 	"attack": {
-		"position": Vector2(0.45, 0.66),
-		"rotation_deg": 70.0,
-		"extent": 0.78,
+		"hand_uv": Vector2(0.742, 0.565),
+		"rotation_deg": 30.0,
+		"length_ratio": 0.62,
 		"draw_front": true,
 	},
 	"skill": {
-		"position": Vector2(0.47, 0.61),
-		"rotation_deg": 42.0,
-		"extent": 0.82,
+		"hand_uv": Vector2(0.742, 0.565),
+		"rotation_deg": -15.0,
+		"length_ratio": 0.66,
 		"draw_front": true,
 	},
 	"hit": {
-		"position": Vector2(0.74, 0.63),
-		"rotation_deg": 120.0,
-		"extent": 0.60,
-		"draw_front": true,
+		"hand_uv": Vector2(0.742, 0.565),
+		"rotation_deg": 105.0,
+		"length_ratio": 0.54,
+		"draw_front": false,
 	},
 	"victory": {
-		"position": Vector2(0.47, 0.47),
-		"rotation_deg": 4.0,
-		"extent": 0.72,
+		"hand_uv": Vector2(0.742, 0.565),
+		"rotation_deg": -15.0,
+		"length_ratio": 0.62,
 		"draw_front": true,
 	},
 	"defeat": {
-		"position": Vector2(0.58, 0.88),
-		"rotation_deg": 88.0,
-		"extent": 0.58,
+		"hand_uv": Vector2(0.910, 0.715),
+		"rotation_deg": 210.0,
+		"length_ratio": 0.46,
 		"draw_front": true,
 	},
 }
@@ -61,6 +63,8 @@ var _weapon_base_rotation_deg := 0.0
 
 var _body_texture_size := Vector2.ONE
 var _body_used_rect := Rect2(Vector2.ZERO, Vector2.ONE)
+var _body_scale := 1.0
+var _body_draw_position := Vector2.ZERO
 var _weapon_texture_size := Vector2.ONE
 var _weapon_used_rect := Rect2(Vector2.ZERO, Vector2.ONE)
 
@@ -211,11 +215,14 @@ func _apply_body_layout() -> void:
 	var used_center_x := (_body_used_rect.position.x + _body_used_rect.size.x * 0.5) * scale_factor
 	var used_bottom := (_body_used_rect.position.y + _body_used_rect.size.y) * scale_factor
 
-	body_art.size = render_size
-	body_art.position = Vector2(
+	_body_scale = scale_factor
+	_body_draw_position = Vector2(
 		size.x * 0.5 - used_center_x,
 		size.y * 0.985 - used_bottom
 	)
+
+	body_art.size = render_size
+	body_art.position = _body_draw_position
 
 
 func _apply_weapon_layout() -> void:
@@ -227,12 +234,20 @@ func _apply_weapon_layout() -> void:
 		return
 
 	var spec: Dictionary = WEAPON_SOCKETS.get(_state, WEAPON_SOCKETS["idle"])
-	var uv: Vector2 = spec["position"]
-	weapon_socket.position = Vector2(size.x * uv.x, size.y * uv.y)
+	var hand_uv: Vector2 = spec["hand_uv"]
+	var hand_in_body_texture := Vector2(
+		_body_texture_size.x * hand_uv.x,
+		_body_texture_size.y * hand_uv.y
+	)
+
+	# Convert the authored hand point through the exact same body transform.
+	weapon_socket.position = _body_draw_position + hand_in_body_texture * _body_scale
 	weapon_socket.rotation = deg_to_rad(_weapon_base_rotation_deg + float(spec["rotation_deg"]))
 	weapon_socket.z_index = 3 if bool(spec["draw_front"]) else -1
 
-	var target_extent := minf(size.x, size.y) * float(spec["extent"])
+	# Weapon length is proportional to the visible HeroBody height, not slot width.
+	var visible_body_height := _body_used_rect.size.y * _body_scale
+	var target_extent := visible_body_height * float(spec["length_ratio"])
 	var max_used_dimension := maxf(_weapon_used_rect.size.x, _weapon_used_rect.size.y)
 	var scale_factor := target_extent / max_used_dimension
 	var render_size := _weapon_texture_size * scale_factor
