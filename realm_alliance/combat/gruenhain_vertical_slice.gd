@@ -9,6 +9,7 @@ const V2_GAME_ROOT := "res://assets/realm_alliance/v2_game/"
 const RUNTIME_HERO_ROOT := "res://assets/realm_alliance/runtime/hero/"
 const CombatLayout = preload("res://realm_alliance/combat/gruenhain_combat_layout.gd")
 const HeroVisualRig = preload("res://realm_alliance/combat/hero_visual_rig.gd")
+const HERO_BODY_TEXTURE: Texture2D = preload("res://assets/realm_alliance/runtime/hero/idle.png")
 
 # Clean HeroBody art never owns the gameplay weapon.
 # Attack/skill/victory use the clean idle body plus motion/weapon animation,
@@ -248,7 +249,7 @@ func _build_header() -> void:
 	header.add_child(player_chip)
 
 	var avatar := TextureRect.new()
-	avatar.texture = _load_runtime_hero_texture(HERO_FILES["idle"])
+	avatar.texture = HERO_BODY_TEXTURE
 	avatar.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	avatar.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -417,6 +418,9 @@ func _build_stage() -> void:
 	hero_motion.add_child(hero_rig)
 
 	hero_art = hero_rig.body_art
+	hero_rig.set_body_texture(HERO_BODY_TEXTURE)
+	hero_art.visible = true
+	hero_rig.visible = true
 	hero_rig.set_weapon(
 		_load_combat_texture(str(STARTER_WEAPON["texture"])),
 		STARTER_WEAPON["grip_uv"],
@@ -1305,10 +1309,13 @@ func _apply_enemy_layout(layout: String) -> void:
 
 
 func _set_hero_state(state: String) -> void:
-	var texture := _load_runtime_hero_texture(HERO_FILES.get(state, HERO_FILES["idle"]))
-	# Body first, then state: the socket is resolved from the current body's texture space.
-	hero_rig.set_body_texture(texture)
+	# Current slice uses one clean, preloaded HeroBody. State feel comes from
+	# motion, tint and the separate weapon socket until a full normalized kit exists.
+	hero_rig.set_body_texture(HERO_BODY_TEXTURE)
+	hero_art.visible = true
+	hero_rig.visible = true
 	hero_rig.set_state(state)
+	hero_rig.call_deferred("refresh_layout")
 
 
 func _set_enemy_state(state: String) -> void:
