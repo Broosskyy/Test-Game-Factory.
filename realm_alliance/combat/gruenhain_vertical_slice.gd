@@ -14,12 +14,12 @@ const HeroVisualRig = preload("res://realm_alliance/combat/hero_visual_rig.gd")
 # Attack/skill/victory use the clean idle body plus motion/weapon animation,
 # avoiding the inconsistent legacy state crops.
 const HERO_FILES := {
-	"idle": "idle.webp",
-	"attack": "idle.webp",
-	"skill": "idle.webp",
-	"hit": "idle.webp",
-	"victory": "idle.webp",
-	"defeat": "defeat.webp",
+	"idle": "idle.png",
+	"attack": "idle.png",
+	"skill": "idle.png",
+	"hit": "idle.png",
+	"victory": "idle.png",
+	"defeat": "defeat.png",
 }
 
 # Gameplay item and visual asset stay separate from the hero body.
