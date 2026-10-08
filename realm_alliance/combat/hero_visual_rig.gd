@@ -39,10 +39,10 @@ const WEAPON_SOCKETS := {
 		"draw_front": true,
 	},
 	"defeat": {
-		"hand_uv": Vector2(0.910, 0.715),
-		"rotation_deg": 210.0,
+		"hand_uv": Vector2(0.742, 0.565),
+		"rotation_deg": 155.0,
 		"length_ratio": 0.46,
-		"draw_front": true,
+		"draw_front": false,
 	},
 }
 

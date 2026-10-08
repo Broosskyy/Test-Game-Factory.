@@ -19,7 +19,7 @@ const HERO_FILES := {
 	"skill": "idle.png",
 	"hit": "idle.png",
 	"victory": "idle.png",
-	"defeat": "defeat.png",
+	"defeat": "idle.png",
 }
 
 # Gameplay item and visual asset stay separate from the hero body.

@@ -60,6 +60,7 @@ jobs:
         with:
           name: realm-alliance-runtime-art
           path: |
+            assets/realm_alliance/runtime/hero/*.png
             assets/realm_alliance/production/hero/realmwaechter/*.png
             assets/realm_alliance/production/weapons/realmblade/*.png
             assets/realm_alliance/v2_game/monsters/greenvale/states/*.png
