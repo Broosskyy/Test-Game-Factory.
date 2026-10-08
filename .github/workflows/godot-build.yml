@@ -25,12 +25,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Install CI runtime dependencies
         shell: bash
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends fontconfig curl jq
+          apt-get install -y --no-install-recommends fontconfig curl jq python3-pil
           rm -rf /var/lib/apt/lists/*
 
       - name: Prepare Godot export environment
@@ -52,6 +54,42 @@ jobs:
       - name: Sync pinned REALM ALLIANCE production assets
         shell: bash
         run: bash scripts/sync_realm_assets.sh
+
+      - name: Normalize runtime HeroBody PNG
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+
+          path = Path("assets/realm_alliance/runtime/hero/idle.png")
+          if not path.exists():
+              raise SystemExit(f"Missing runtime HeroBody: {path}")
+
+          with Image.open(path) as source:
+              rgba = source.convert("RGBA")
+              alpha = rgba.getchannel("A")
+              if alpha.getbbox() is None:
+                  raise SystemExit(f"Runtime HeroBody is fully transparent: {path}")
+              rgba.save(path, format="PNG", optimize=True)
+
+          with Image.open(path) as check:
+              if check.mode != "RGBA":
+                  raise SystemExit(f"Runtime HeroBody normalization failed: {check.mode}")
+              print(f"HeroBody normalized: {path} {check.size} {check.mode}")
+          PY
+
+      - name: Upload runtime art diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: realm-alliance-runtime-art
+          path: |
+            assets/realm_alliance/runtime/hero/*.png
+            assets/realm_alliance/runtime/hero/*.webp
+            assets/realm_alliance/production/hero/realmwaechter/*.png
+            assets/realm_alliance/production/weapons/realmblade/*.png
+            assets/realm_alliance/v2_game/monsters/greenvale/states/*.png
+          if-no-files-found: error
 
       - name: Import project
         shell: bash
@@ -89,8 +127,7 @@ jobs:
           mkdir -p build/android
           godot --headless --verbose --path . --export-debug "Android Debug" build/android/RealmAllianceV2.apk
 
-      - name: Package live Web bundle
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Package Web bundle
         shell: bash
         run: |
           rm -f build/test-game-factory-web.zip
@@ -99,42 +136,62 @@ jobs:
             zip -q -r ../test-game-factory-web.zip .
           )
 
-      - name: Publish live Web bundle
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Publish commit-bound Web bundle
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUNDLE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BUILD_EVENT: ${{ github.event_name }}
         run: |
           set -euo pipefail
 
           API="https://api.github.com"
           REPO="${GITHUB_REPOSITORY}"
-          TAG="web-live"
           ASSET="test-game-factory-web.zip"
           AUTH="Authorization: Bearer ${GH_TOKEN}"
           ACCEPT="Accept: application/vnd.github+json"
 
+          if [ "${BUILD_EVENT}" = "pull_request" ]; then
+            TAG="web-preview-${BUNDLE_SHA}"
+            RELEASE_NAME="Preview Web Build ${BUNDLE_SHA:0:8}"
+          else
+            TAG="web-live"
+            RELEASE_NAME="Live Web Build"
+          fi
+
+          echo "Publishing ${TAG} for ${BUNDLE_SHA}"
+
           release_json="$(curl -fsSL -H "$AUTH" -H "$ACCEPT" "$API/repos/$REPO/releases/tags/$TAG" || true)"
 
           if [ -z "$release_json" ]; then
-            payload="$(jq -n               --arg tag "$TAG"               --arg sha "$GITHUB_SHA"               '{tag_name:$tag,target_commitish:$sha,name:"Live Web Build",body:"commit=pending",prerelease:true}')"
-            release_json="$(curl -fsSL -X POST -H "$AUTH" -H "$ACCEPT" -H "Content-Type: application/json"               "$API/repos/$REPO/releases" -d "$payload")"
+            payload="$(jq -n \
+              --arg tag "$TAG" \
+              --arg sha "$BUNDLE_SHA" \
+              --arg name "$RELEASE_NAME" \
+              '{tag_name:$tag,target_commitish:$sha,name:$name,body:"commit=pending",prerelease:true}')"
+            release_json="$(curl -fsSL -X POST -H "$AUTH" -H "$ACCEPT" -H "Content-Type: application/json" \
+              "$API/repos/$REPO/releases" -d "$payload")"
           fi
 
           release_id="$(printf '%s' "$release_json" | jq -r '.id')"
 
-          existing_asset_id="$(printf '%s' "$release_json" | jq -r --arg name "$ASSET"             '.assets[]? | select(.name == $name) | .id' | head -n1)"
+          existing_asset_id="$(printf '%s' "$release_json" | jq -r --arg name "$ASSET" \
+            '.assets[]? | select(.name == $name) | .id' | head -n1)"
 
           if [ -n "$existing_asset_id" ] && [ "$existing_asset_id" != "null" ]; then
-            curl -fsSL -X DELETE -H "$AUTH" -H "$ACCEPT"               "$API/repos/$REPO/releases/assets/$existing_asset_id"
+            curl -fsSL -X DELETE -H "$AUTH" -H "$ACCEPT" \
+              "$API/repos/$REPO/releases/assets/$existing_asset_id"
           fi
 
-          curl -fsSL -X POST -H "$AUTH" -H "$ACCEPT" -H "Content-Type: application/zip"             --data-binary "@build/$ASSET"             "https://uploads.github.com/repos/$REPO/releases/$release_id/assets?name=$ASSET" >/dev/null
+          curl -fsSL -X POST -H "$AUTH" -H "$ACCEPT" -H "Content-Type: application/zip" \
+            --data-binary "@build/$ASSET" \
+            "https://uploads.github.com/repos/$REPO/releases/$release_id/assets?name=$ASSET" >/dev/null
 
-          ready_payload="$(jq -n --arg body "commit=$GITHUB_SHA" '{body:$body}')"
-          curl -fsSL -X PATCH -H "$AUTH" -H "$ACCEPT" -H "Content-Type: application/json"             "$API/repos/$REPO/releases/$release_id" -d "$ready_payload" >/dev/null
+          ready_payload="$(jq -n --arg body "commit=$BUNDLE_SHA" '{body:$body}')"
+          curl -fsSL -X PATCH -H "$AUTH" -H "$ACCEPT" -H "Content-Type: application/json" \
+            "$API/repos/$REPO/releases/$release_id" -d "$ready_payload" >/dev/null
 
-          echo "Published live Web bundle for $GITHUB_SHA"
+          echo "Published Web bundle for $BUNDLE_SHA"
 
       - name: Upload Web build
         uses: actions/upload-artifact@v4

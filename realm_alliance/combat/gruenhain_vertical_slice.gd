@@ -6,15 +6,34 @@ const LANDSCAPE_REFERENCE := Vector2i(960, 540)
 const COMBAT_ROOT := "res://assets/realm_alliance/production/"
 const V2_ROOT := "res://assets/realm_alliance/v2/"
 const V2_GAME_ROOT := "res://assets/realm_alliance/v2_game/"
+const RUNTIME_HERO_ROOT := "res://assets/realm_alliance/runtime/hero/"
 const CombatLayout = preload("res://realm_alliance/combat/gruenhain_combat_layout.gd")
+const HeroVisualRig = preload("res://realm_alliance/combat/hero_visual_rig.gd")
+const HERO_BODY_TEXTURE: Texture2D = preload("res://assets/realm_alliance/runtime/hero/idle.png")
 
+# Clean HeroBody art never owns the gameplay weapon.
+# Attack/skill/victory use the clean idle body plus motion/weapon animation,
+# avoiding the inconsistent legacy state crops.
 const HERO_FILES := {
-	"idle": "hero/realmwaechter/idle.png",
-	"attack": "hero/realmwaechter/attack.png",
-	"skill": "hero/realmwaechter/skill.png",
-	"hit": "hero/realmwaechter/hit.png",
-	"victory": "hero/realmwaechter/victory.png",
-	"defeat": "hero/realmwaechter/defeated.png",
+	"idle": "idle.png",
+	"attack": "idle.png",
+	"skill": "idle.png",
+	"hit": "idle.png",
+	"victory": "idle.png",
+	"defeat": "idle.png",
+}
+
+# Gameplay item and visual asset stay separate from the hero body.
+# Later this can be replaced by inventory/equipment data without changing the visual rig.
+const STARTER_WEAPON := {
+	"id": "realmblade_basic",
+	"name": "Realmblade",
+	"level": 1,
+	"upgrade": 0,
+	"base_damage": 25,
+	"texture": "weapons/realmblade/blade-basic.png",
+	"grip_uv": Vector2(0.50, 0.92),
+	"base_rotation_deg": 0.0,
 }
 
 const RUN_SEQUENCE := [
@@ -74,6 +93,9 @@ const DISPLAY_DAMAGE := [5274, 2931, 8416, 2605, 6128, 3442]
 
 var player_hp := 100
 var player_level := 42
+var player_xp := 72
+var player_momentum := 10
+var player_rage := 0
 var hero_damage := 25
 
 var encounter_index := 0
@@ -97,11 +119,14 @@ var stage: Control
 # Layout slots never animate. Motion wrappers animate inside the slots.
 var hero_holder: Control
 var hero_motion: Control
+var hero_rig: Control
 var enemy_holder: Control
 var enemy_motion: Control
 var hero_art: TextureRect
 var enemy_art: TextureRect
 var hit_fx: TextureRect
+var _enemy_texture_size := Vector2.ONE
+var _enemy_used_rect := Rect2(Vector2.ZERO, Vector2.ONE)
 
 var world_pill: PanelContainer
 var streak_panel: PanelContainer
@@ -120,6 +145,12 @@ var progress_label: Label
 var player_hp_bar: ProgressBar
 var player_hp_text: Label
 var player_level_label: Label
+var player_xp_bar: ProgressBar
+var player_xp_text: Label
+var momentum_bar: ProgressBar
+var momentum_label: Label
+var rage_bar: ProgressBar
+var rage_label: Label
 var damage_label: Label
 
 var attack_hint: Label
@@ -129,6 +160,8 @@ var level_overlay: ColorRect
 var loot_overlay: ColorRect
 var result_overlay: ColorRect
 var result_title: Label
+var result_detail: Label
+var restart_button: Button
 var chest_art: TextureRect
 
 
@@ -216,7 +249,7 @@ func _build_header() -> void:
 	header.add_child(player_chip)
 
 	var avatar := TextureRect.new()
-	avatar.texture = _load_combat_texture(HERO_FILES["idle"])
+	avatar.texture = HERO_BODY_TEXTURE
 	avatar.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	avatar.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -230,28 +263,28 @@ func _build_header() -> void:
 	_anchor(player_level_label, 0.29, 0.08, 0.94, 0.48)
 	player_chip.add_child(player_level_label)
 
-	var xp := ProgressBar.new()
-	xp.min_value = 0
-	xp.max_value = 100
-	xp.value = 72
-	xp.show_percentage = false
-	xp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	xp.add_theme_stylebox_override("background", _panel_style(Color("#06101a"), Color("#10293c"), 8))
-	xp.add_theme_stylebox_override("fill", _panel_style(Color("#2c9cff"), Color("#6dc8ff"), 8))
-	_anchor(xp, 0.29, 0.57, 0.80, 0.82)
-	player_chip.add_child(xp)
+	player_xp_bar = ProgressBar.new()
+	player_xp_bar.min_value = 0
+	player_xp_bar.max_value = 100
+	player_xp_bar.value = player_xp
+	player_xp_bar.show_percentage = false
+	player_xp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	player_xp_bar.add_theme_stylebox_override("background", _panel_style(Color("#06101a"), Color("#10293c"), 8))
+	player_xp_bar.add_theme_stylebox_override("fill", _panel_style(Color("#2c9cff"), Color("#6dc8ff"), 8))
+	_anchor(player_xp_bar, 0.29, 0.57, 0.80, 0.82)
+	player_chip.add_child(player_xp_bar)
 
-	var xp_text := Label.new()
-	xp_text.text = "72%"
-	xp_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	xp_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	xp_text.add_theme_color_override("font_color", Color("#dceeff"))
-	xp_text.add_theme_font_size_override("font_size", 12)
-	_anchor(xp_text, 0.81, 0.52, 0.98, 0.86)
-	player_chip.add_child(xp_text)
+	player_xp_text = Label.new()
+	player_xp_text.text = "%d%%" % mini(player_xp, 100)
+	player_xp_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	player_xp_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	player_xp_text.add_theme_color_override("font_color", Color("#dceeff"))
+	player_xp_text.add_theme_font_size_override("font_size", 12)
+	_anchor(player_xp_text, 0.81, 0.52, 0.98, 0.86)
+	player_chip.add_child(player_xp_text)
 
 	var resources := HBoxContainer.new()
-	_anchor(resources, 0.315, 0.17, 0.835, 0.84)
+	_anchor(resources, 0.305, 0.17, 0.79, 0.84)
 	resources.alignment = BoxContainer.ALIGNMENT_CENTER
 	resources.add_theme_constant_override("separation", 7)
 	header.add_child(resources)
@@ -300,7 +333,7 @@ func _build_header() -> void:
 	settings.focus_mode = Control.FOCUS_NONE
 	settings.add_theme_font_size_override("font_size", 11)
 	settings.add_theme_stylebox_override("normal", _panel_style(Color("#0b1a2b"), Color("#31587a"), 12))
-	_anchor(settings, 0.89, 0.18, 0.955, 0.82)
+	_anchor(settings, 0.80, 0.18, 0.89, 0.82)
 	header.add_child(settings)
 
 	if OS.get_name() == "Web":
@@ -309,7 +342,7 @@ func _build_header() -> void:
 		fullscreen.focus_mode = Control.FOCUS_NONE
 		fullscreen.add_theme_font_size_override("font_size", 11)
 		fullscreen.add_theme_stylebox_override("normal", _panel_style(Color("#0b1a2b"), Color("#31587a"), 12))
-		_anchor(fullscreen, 0.958, 0.18, 0.992, 0.82)
+		_anchor(fullscreen, 0.90, 0.18, 0.985, 0.82)
 		fullscreen.pressed.connect(_toggle_fullscreen)
 		header.add_child(fullscreen)
 
@@ -380,9 +413,19 @@ func _build_stage() -> void:
 	hero_motion.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hero_holder.add_child(hero_motion)
 
-	hero_art = _make_texture_rect()
-	_anchor(hero_art, 0.0, 0.0, 1.0, 1.0)
-	hero_motion.add_child(hero_art)
+	hero_rig = HeroVisualRig.new()
+	_anchor(hero_rig, 0.0, 0.0, 1.0, 1.0)
+	hero_motion.add_child(hero_rig)
+
+	hero_art = hero_rig.body_art
+	hero_rig.set_body_texture(HERO_BODY_TEXTURE)
+	hero_art.visible = true
+	hero_rig.visible = true
+	hero_rig.set_weapon(
+		_load_combat_texture(str(STARTER_WEAPON["texture"])),
+		STARTER_WEAPON["grip_uv"],
+		float(STARTER_WEAPON["base_rotation_deg"])
+	)
 
 	enemy_holder = Control.new()
 	enemy_holder.z_index = 11
@@ -394,8 +437,10 @@ func _build_stage() -> void:
 	enemy_motion.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	enemy_holder.add_child(enemy_motion)
 
-	enemy_art = _make_texture_rect()
-	_anchor(enemy_art, 0.0, 0.0, 1.0, 1.0)
+	enemy_art = TextureRect.new()
+	enemy_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	enemy_art.stretch_mode = TextureRect.STRETCH_SCALE
+	enemy_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	enemy_motion.add_child(enemy_art)
 
 	hit_fx = _make_texture_rect()
@@ -513,11 +558,12 @@ func _build_damage_number() -> void:
 	damage_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.98))
 	damage_label.add_theme_constant_override("shadow_offset_x", 4)
 	damage_label.add_theme_constant_override("shadow_offset_y", 4)
-	damage_label.add_theme_font_size_override("font_size", 76)
-	damage_label.rotation = deg_to_rad(-5.0)
+	damage_label.add_theme_font_size_override("font_size", 54)
+	damage_label.rotation = deg_to_rad(-4.0)
 	damage_label.z_index = 47
 	damage_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stage.add_child(damage_label)
+	_anchor(damage_label, 0.04, -0.12, 0.96, 0.28)
+	enemy_holder.add_child(damage_label)
 
 
 func _build_combat_bottom_hud() -> void:
@@ -568,32 +614,45 @@ func _build_combat_bottom_hud() -> void:
 
 	vitals_row.add_child(hp_card)
 
-	for stat in [["MOMENTUM", "68%", "#a34cff"], ["ZORN", "42%", "#ff8b23"]]:
-		var card := PanelContainer.new()
-		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		card.add_theme_stylebox_override("panel", _panel_style(Color("#091722"), Color(stat[2]), 12))
+	var momentum_card := PanelContainer.new()
+	momentum_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	momentum_card.add_theme_stylebox_override("panel", _panel_style(Color("#091722"), Color("#a34cff"), 12))
+	var momentum_box := VBoxContainer.new()
+	momentum_card.add_child(momentum_box)
+	momentum_label = Label.new()
+	momentum_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	momentum_label.add_theme_color_override("font_color", Color("#a34cff"))
+	momentum_label.add_theme_font_size_override("font_size", 11)
+	momentum_box.add_child(momentum_label)
+	momentum_bar = ProgressBar.new()
+	momentum_bar.min_value = 0
+	momentum_bar.max_value = 100
+	momentum_bar.show_percentage = false
+	momentum_bar.custom_minimum_size = Vector2(0, 18)
+	momentum_bar.add_theme_stylebox_override("background", _panel_style(Color("#04070c"), Color("#222d38"), 8))
+	momentum_bar.add_theme_stylebox_override("fill", _panel_style(Color("#a34cff"), Color("#c184ff"), 8))
+	momentum_box.add_child(momentum_bar)
+	vitals_row.add_child(momentum_card)
 
-		var box := VBoxContainer.new()
-		card.add_child(box)
-
-		var label := Label.new()
-		label.text = "%s %s" % [stat[0], stat[1]]
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.add_theme_color_override("font_color", Color(stat[2]))
-		label.add_theme_font_size_override("font_size", 11)
-		box.add_child(label)
-
-		var bar := ProgressBar.new()
-		bar.min_value = 0
-		bar.max_value = 100
-		bar.value = 68 if stat[0] == "MOMENTUM" else 42
-		bar.show_percentage = false
-		bar.custom_minimum_size = Vector2(0, 18)
-		bar.add_theme_stylebox_override("background", _panel_style(Color("#04070c"), Color("#222d38"), 8))
-		bar.add_theme_stylebox_override("fill", _panel_style(Color(stat[2]), Color(stat[2]).lightened(0.2), 8))
-		box.add_child(bar)
-
-		vitals_row.add_child(card)
+	var rage_card := PanelContainer.new()
+	rage_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rage_card.add_theme_stylebox_override("panel", _panel_style(Color("#091722"), Color("#ff8b23"), 12))
+	var rage_box := VBoxContainer.new()
+	rage_card.add_child(rage_box)
+	rage_label = Label.new()
+	rage_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	rage_label.add_theme_color_override("font_color", Color("#ff8b23"))
+	rage_label.add_theme_font_size_override("font_size", 11)
+	rage_box.add_child(rage_label)
+	rage_bar = ProgressBar.new()
+	rage_bar.min_value = 0
+	rage_bar.max_value = 100
+	rage_bar.show_percentage = false
+	rage_bar.custom_minimum_size = Vector2(0, 18)
+	rage_bar.add_theme_stylebox_override("background", _panel_style(Color("#04070c"), Color("#222d38"), 8))
+	rage_bar.add_theme_stylebox_override("fill", _panel_style(Color("#ff8b23"), Color("#ffb15e"), 8))
+	rage_box.add_child(rage_bar)
+	vitals_row.add_child(rage_card)
 
 	auto_button = Button.new()
 	auto_button.text = ""
@@ -677,6 +736,7 @@ func _build_level_overlay() -> void:
 
 	var card := PanelContainer.new()
 	_anchor(card, 0.20, 0.34, 0.80, 0.62)
+	card.z_index = 2
 	card.add_theme_stylebox_override("panel", _panel_style(Color("#0b1725"), Color("#d7a832"), 24))
 	level_overlay.add_child(card)
 
@@ -726,6 +786,7 @@ func _build_loot_overlay() -> void:
 
 	var card := PanelContainer.new()
 	_anchor(card, 0.20, 0.31, 0.80, 0.64)
+	card.z_index = 2
 	card.add_theme_stylebox_override("panel", _panel_style(Color("#0b1725"), Color("#d7a832"), 24))
 	loot_overlay.add_child(card)
 
@@ -796,20 +857,30 @@ func _build_result_overlay() -> void:
 	result_title.add_theme_font_size_override("font_size", 38)
 	content.add_child(result_title)
 
-	var restart := Button.new()
-	restart.text = "NEUSTART"
-	restart.custom_minimum_size = Vector2(230, 58)
-	restart.focus_mode = Control.FOCUS_NONE
-	restart.add_theme_font_size_override("font_size", 17)
-	restart.add_theme_stylebox_override("normal", _panel_style(Color("#17324b"), Color("#66b5e7"), 14))
-	restart.pressed.connect(_start_run)
-	content.add_child(restart)
+	result_detail = Label.new()
+	result_detail.text = ""
+	result_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	result_detail.add_theme_color_override("font_color", Color("#c5d8e6"))
+	result_detail.add_theme_font_size_override("font_size", 14)
+	content.add_child(result_detail)
+
+	restart_button = Button.new()
+	restart_button.text = "NEUSTART"
+	restart_button.custom_minimum_size = Vector2(230, 58)
+	restart_button.focus_mode = Control.FOCUS_NONE
+	restart_button.add_theme_font_size_override("font_size", 17)
+	restart_button.add_theme_stylebox_override("normal", _panel_style(Color("#17324b"), Color("#66b5e7"), 14))
+	restart_button.pressed.connect(_start_run)
+	content.add_child(restart_button)
 
 
 func _start_run() -> void:
 	player_hp = 100
 	player_level = 42
-	hero_damage = 25
+	player_xp = 72
+	player_momentum = 20
+	player_rage = 0
+	hero_damage = int(STARTER_WEAPON["base_damage"])
 	encounter_index = 0
 	damage_index = 0
 	first_input_hint_available = true
@@ -869,54 +940,77 @@ func _attack() -> void:
 	first_input_hint_available = false
 	attack_hint.visible = false
 
+	var hero_start := hero_motion.position
 	_set_hero_state("attack")
 
-	var hero_start := hero_motion.position
+	# Anticipation -> strike -> recovery. Only HeroMotion moves; HeroSlot stays locked.
 	var hero_tween := create_tween()
-	hero_tween.tween_property(hero_motion, "position", hero_start + Vector2(20, -3), 0.10)
-	hero_tween.tween_property(hero_motion, "position", hero_start, 0.13)
+	hero_tween.tween_property(hero_motion, "position", hero_start + Vector2(-5, 1), 0.055).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	hero_tween.tween_property(hero_motion, "position", hero_start + Vector2(22, -3), 0.085).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	hero_tween.tween_interval(0.045)
+	hero_tween.tween_property(hero_motion, "position", hero_start, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
-	await get_tree().create_timer(0.11).timeout
+	await get_tree().create_timer(0.115).timeout
 
 	enemy_hp = maxi(0, enemy_hp - hero_damage)
+	player_momentum = mini(100, player_momentum + 5)
 	_set_enemy_state("hit")
 	enemy_art.modulate = Color(1.35, 1.35, 1.35, 1.0)
 	_show_hit_fx()
 	_show_damage()
 	_refresh_enemy_hud()
+	_refresh_player_hud()
+
+	# Short hit-stop before recoil makes the impact readable.
+	await get_tree().create_timer(0.055).timeout
 
 	var enemy_start := enemy_motion.position
 	var recoil := create_tween()
 	recoil.tween_property(enemy_motion, "position", enemy_start + Vector2(18, -2), 0.055)
 	recoil.tween_property(enemy_motion, "position", enemy_start - Vector2(4, 0), 0.06)
-	recoil.tween_property(enemy_motion, "position", enemy_start, 0.085)
+	recoil.tween_property(enemy_motion, "position", enemy_start, 0.09)
 
 	var flash_tween := create_tween()
 	flash_tween.tween_property(enemy_art, "modulate", Color.WHITE, 0.14)
 
-	await get_tree().create_timer(0.22).timeout
+	await get_tree().create_timer(0.19).timeout
 
 	if enemy_hp <= 0:
+		hero_motion.position = hero_start
 		await _handle_enemy_defeat()
 		busy = false
 		return
 
 	_set_hero_state("idle")
+	await get_tree().create_timer(0.055).timeout
+
+	# Enemy telegraph -> lunge -> hit -> recovery.
 	_set_enemy_state("attack")
+	var enemy_attack_start := enemy_motion.position
+	var enemy_attack_tween := create_tween()
+	enemy_attack_tween.tween_property(enemy_motion, "position", enemy_attack_start + Vector2(5, 0), 0.055)
+	enemy_attack_tween.tween_property(enemy_motion, "position", enemy_attack_start + Vector2(-16, 0), 0.085)
+	enemy_attack_tween.tween_interval(0.035)
+	enemy_attack_tween.tween_property(enemy_motion, "position", enemy_attack_start, 0.13)
 
-	await get_tree().create_timer(0.18).timeout
+	await get_tree().create_timer(0.125).timeout
 
-	player_hp = maxi(0, player_hp - int(current_enemy["enemy_damage"]))
+	var incoming_damage := int(current_enemy["enemy_damage"])
+	player_hp = maxi(0, player_hp - incoming_damage)
+	player_momentum = maxi(0, player_momentum - 4)
+	player_rage = mini(100, player_rage + 3 + incoming_damage)
 	_set_hero_state("hit")
 	hero_art.modulate = Color(1.25, 0.68, 0.68, 1.0)
 	_refresh_player_hud()
 
+	await get_tree().create_timer(0.045).timeout
+
 	var hero_hit_start := hero_motion.position
 	var hero_hit_tween := create_tween()
-	hero_hit_tween.tween_property(hero_motion, "position", hero_hit_start - Vector2(14, 1), 0.06)
-	hero_hit_tween.tween_property(hero_motion, "position", hero_hit_start, 0.10)
+	hero_hit_tween.tween_property(hero_motion, "position", hero_hit_start - Vector2(14, 1), 0.065)
+	hero_hit_tween.tween_property(hero_motion, "position", hero_hit_start, 0.12)
 
-	await get_tree().create_timer(0.14).timeout
+	await get_tree().create_timer(0.16).timeout
 	hero_art.modulate = Color.WHITE
 
 	if player_hp <= 0:
@@ -926,21 +1020,25 @@ func _attack() -> void:
 
 	_set_hero_state("idle")
 	_set_enemy_state("idle")
+	hero_motion.position = hero_start
+	enemy_motion.position = enemy_attack_start
 	attack_hint.visible = false
 	busy = false
 
-
 func _handle_enemy_defeat() -> void:
 	_set_enemy_state("defeat")
-	_set_hero_state("victory")
+	_set_hero_state("victory" if encounter_index == RUN_SEQUENCE.size() - 1 else "idle")
 	run_mode = "transition"
 	attack_hint.visible = false
+
+	_award_enemy_progression()
+	await get_tree().create_timer(0.18).timeout
 
 	var defeated_start := enemy_motion.position
 	var defeat_tween := create_tween()
 	defeat_tween.set_parallel(true)
-	defeat_tween.tween_property(enemy_motion, "position", defeated_start + Vector2(0, 16), 0.30).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	defeat_tween.tween_property(enemy_motion, "modulate:a", 0.28, 0.30)
+	defeat_tween.tween_property(enemy_motion, "position", defeated_start + Vector2(0, 16), 0.36).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	defeat_tween.tween_property(enemy_motion, "modulate:a", 0.18, 0.36)
 	await defeat_tween.finished
 
 	var burst := _make_texture_rect()
@@ -980,7 +1078,7 @@ func _show_level_up() -> void:
 	var beam := _make_texture_rect()
 	beam.texture = _load_v2_texture("v190/vfx/progression_a/gold_level_beam.png")
 	_anchor(beam, 0.28, 0.26, 0.72, 0.64)
-	beam.z_index = 201
+	beam.z_index = 1
 	beam.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	level_overlay.add_child(beam)
 
@@ -999,6 +1097,7 @@ func _continue_after_levelup() -> void:
 		return
 
 	player_level = 43
+	player_xp = maxi(0, player_xp - 100)
 	hero_damage = 30
 	player_hp = mini(100, player_hp + 25)
 	player_level_label.text = "LV. %d" % player_level
@@ -1028,7 +1127,7 @@ func _open_loot() -> void:
 	var burst := _make_texture_rect()
 	burst.texture = _load_v2_texture("v190/vfx/rewards/gold_burst.png")
 	_anchor(burst, 0.31, 0.31, 0.69, 0.62)
-	burst.z_index = 212
+	burst.z_index = 1
 	burst.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	loot_overlay.add_child(burst)
 
@@ -1040,10 +1139,17 @@ func _open_loot() -> void:
 
 func _show_victory() -> void:
 	run_mode = "result"
+	auto_enabled = false
+	attack_hint.visible = false
 	_set_hero_state("victory")
 	result_title.text = "SIEG"
+	result_detail.text = "5 / 5 abgeschlossen · Boss-Beute gesichert"
 	result_title.add_theme_color_override("font_color", Color("#ffe69b"))
+	restart_button.text = "NEUER RUN"
+	restart_button.disabled = true
 	result_overlay.visible = true
+	await get_tree().create_timer(0.45).timeout
+	restart_button.disabled = false
 
 
 func _show_defeat() -> void:
@@ -1052,8 +1158,13 @@ func _show_defeat() -> void:
 	attack_hint.visible = false
 	_set_hero_state("defeat")
 	result_title.text = "NIEDERLAGE"
+	result_detail.text = "Fortschritt: %d / %d" % [encounter_index + 1, RUN_SEQUENCE.size()]
 	result_title.add_theme_color_override("font_color", Color("#ff8794"))
+	restart_button.text = "NOCHMAL"
+	restart_button.disabled = true
 	result_overlay.visible = true
+	await get_tree().create_timer(0.35).timeout
+	restart_button.disabled = false
 
 
 func _show_hit_fx() -> void:
@@ -1123,6 +1234,37 @@ func _refresh_player_hud() -> void:
 	var visible_hp := roundi(1420.0 * (float(player_hp) / 100.0))
 	player_hp_text.text = "%s / 1.420" % _format_thousands(visible_hp)
 
+	player_xp_bar.value = mini(player_xp, 100)
+	player_xp_text.text = "%d%%" % mini(player_xp, 100)
+
+	momentum_bar.value = player_momentum
+	momentum_label.text = "MOMENTUM %d%%" % player_momentum
+
+	rage_bar.value = player_rage
+	rage_label.text = "ZORN %d%%" % player_rage
+
+
+
+func _award_enemy_progression() -> void:
+	var tier := str(current_enemy.get("tier", "NORMAL"))
+	var xp_gain := 10
+	var momentum_gain := 3
+	var rage_gain := 2
+
+	if tier == "ELITE":
+		xp_gain = 14
+		momentum_gain = 5
+		rage_gain = 4
+	elif tier == "BOSS":
+		xp_gain = 20
+		momentum_gain = 8
+		rage_gain = 6
+
+	player_xp += xp_gain
+	player_momentum = mini(100, player_momentum + momentum_gain)
+	player_rage = mini(100, player_rage + rage_gain)
+	_refresh_player_hud()
+
 
 func _layout_profile() -> Dictionary:
 	return CombatLayout.profile(_last_landscape)
@@ -1138,7 +1280,6 @@ func _apply_master_layout() -> void:
 	CombatLayout.apply_slot(streak_panel, profile["streak"])
 	CombatLayout.apply_slot(enemy_hud, profile["enemy_hud"])
 	CombatLayout.apply_slot(hero_holder, profile["hero"])
-	CombatLayout.apply_slot(damage_label, profile["damage"])
 	CombatLayout.apply_slot(hit_fx, profile["hit_fx"])
 	CombatLayout.apply_slot(bottom_backing, profile["bottom_backing"])
 	CombatLayout.apply_slot(vitals_row, profile["vitals"])
@@ -1149,6 +1290,8 @@ func _apply_master_layout() -> void:
 		_apply_enemy_layout(str(current_enemy["layout"]))
 	else:
 		CombatLayout.apply_slot(enemy_holder, profile["normal"])
+
+	call_deferred("_apply_enemy_art_layout")
 
 
 func _apply_enemy_layout(layout: String) -> void:
@@ -1162,10 +1305,17 @@ func _apply_enemy_layout(layout: String) -> void:
 
 	CombatLayout.apply_slot(enemy_holder, profile[slot_key])
 	enemy_motion.position = Vector2.ZERO
+	call_deferred("_apply_enemy_art_layout")
 
 
 func _set_hero_state(state: String) -> void:
-	hero_art.texture = _load_combat_texture(HERO_FILES.get(state, HERO_FILES["idle"]))
+	# Current slice uses one clean, preloaded HeroBody. State feel comes from
+	# motion, tint and the separate weapon socket until a full normalized kit exists.
+	hero_rig.set_body_texture(HERO_BODY_TEXTURE)
+	hero_art.visible = true
+	hero_rig.visible = true
+	hero_rig.set_state(state)
+	hero_rig.call_deferred("refresh_layout")
 
 
 func _set_enemy_state(state: String) -> void:
@@ -1174,7 +1324,56 @@ func _set_enemy_state(state: String) -> void:
 
 	var id := str(current_enemy["id"])
 	var path := "monsters/greenvale/states/%s_%s.png" % [id, state]
-	enemy_art.texture = _load_game_texture(path)
+	var texture := _load_game_texture(path)
+	enemy_art.texture = texture
+	_capture_enemy_texture_bounds(texture)
+	_apply_enemy_art_layout()
+
+
+func _capture_enemy_texture_bounds(texture: Texture2D) -> void:
+	if texture == null:
+		_enemy_texture_size = Vector2.ONE
+		_enemy_used_rect = Rect2(Vector2.ZERO, Vector2.ONE)
+		return
+
+	_enemy_texture_size = texture.get_size()
+	_enemy_used_rect = Rect2(Vector2.ZERO, _enemy_texture_size)
+
+	var image: Image = texture.get_image()
+	if image == null or image.get_width() <= 0 or image.get_height() <= 0:
+		return
+
+	var used_i: Rect2i = image.get_used_rect()
+	if used_i.size.x <= 0 or used_i.size.y <= 0:
+		return
+
+	_enemy_used_rect = Rect2(Vector2(used_i.position), Vector2(used_i.size))
+
+
+func _apply_enemy_art_layout() -> void:
+	if enemy_art == null or enemy_motion == null:
+		return
+	if enemy_motion.size.x <= 1.0 or enemy_motion.size.y <= 1.0:
+		return
+	if _enemy_used_rect.size.x <= 0.0 or _enemy_used_rect.size.y <= 0.0:
+		return
+
+	var target_height := enemy_motion.size.y * 0.94
+	var scale_factor := target_height / _enemy_used_rect.size.y
+	var max_visible_width := enemy_motion.size.x * 1.16
+
+	if _enemy_used_rect.size.x * scale_factor > max_visible_width:
+		scale_factor = max_visible_width / _enemy_used_rect.size.x
+
+	var render_size := _enemy_texture_size * scale_factor
+	var used_center_x := (_enemy_used_rect.position.x + _enemy_used_rect.size.x * 0.5) * scale_factor
+	var used_bottom := (_enemy_used_rect.position.y + _enemy_used_rect.size.y) * scale_factor
+
+	enemy_art.size = render_size
+	enemy_art.position = Vector2(
+		enemy_motion.size.x * 0.5 - used_center_x,
+		enemy_motion.size.y * 0.985 - used_bottom
+	)
 
 
 func _toggle_auto() -> void:
@@ -1204,6 +1403,10 @@ func _validate_required_assets() -> void:
 		V2_GAME_ROOT + "monsters/greenvale/states/B001_idle.png",
 		V2_ROOT + "ui_v4/upgrade_evolution_a/level_up.png",
 		V2_ROOT + "v190/rewards/chest_states/closed.png",
+		COMBAT_ROOT + str(STARTER_WEAPON["texture"]),
+		RUNTIME_HERO_ROOT + HERO_FILES["idle"],
+		RUNTIME_HERO_ROOT + HERO_FILES["hit"],
+		RUNTIME_HERO_ROOT + HERO_FILES["defeat"],
 	]
 
 	for path in required:
@@ -1222,6 +1425,14 @@ func _validate_layout_contract() -> void:
 
 			if abs(bottom - ground_line) > 0.035:
 				push_error("COMBAT LAYOUT ERROR: %s bottom %.3f differs from ground line %.3f" % [slot_name, bottom, ground_line])
+
+
+func _load_runtime_hero_texture(relative_path: String) -> Texture2D:
+	var path := RUNTIME_HERO_ROOT + relative_path
+	if not ResourceLoader.exists(path):
+		push_error("Missing runtime hero asset: " + path)
+		return null
+	return load(path) as Texture2D
 
 
 func _load_combat_texture(relative_path: String) -> Texture2D:
