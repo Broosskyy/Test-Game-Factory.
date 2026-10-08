@@ -134,6 +134,7 @@ func _build_layers() -> void:
 
 func set_body_texture(texture: Texture2D) -> void:
 	body_art.texture = texture
+	body_art.visible = texture != null
 	var geometry := _texture_geometry(texture)
 	_body_texture_size = geometry["size"]
 	_body_used_rect = geometry["used"]
@@ -185,6 +186,10 @@ func clear_cosmetics() -> void:
 	set_headgear(null)
 	set_wings(null)
 	set_aura(null, null)
+
+
+func refresh_layout() -> void:
+	_apply_layout()
 
 
 func _apply_layout() -> void:
