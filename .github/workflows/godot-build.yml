@@ -32,7 +32,7 @@ jobs:
         shell: bash
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends fontconfig curl jq
+          apt-get install -y --no-install-recommends fontconfig curl jq python3-pil
           rm -rf /var/lib/apt/lists/*
 
       - name: Prepare Godot export environment
@@ -54,6 +54,30 @@ jobs:
       - name: Sync pinned REALM ALLIANCE production assets
         shell: bash
         run: bash scripts/sync_realm_assets.sh
+
+      - name: Normalize runtime HeroBody PNG
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+
+          path = Path("assets/realm_alliance/runtime/hero/idle.png")
+          if not path.exists():
+              raise SystemExit(f"Missing runtime HeroBody: {path}")
+
+          with Image.open(path) as source:
+              rgba = source.convert("RGBA")
+              alpha = rgba.getchannel("A")
+              if alpha.getbbox() is None:
+                  raise SystemExit(f"Runtime HeroBody is fully transparent: {path}")
+              rgba.save(path, format="PNG", optimize=True)
+
+          with Image.open(path) as check:
+              if check.mode != "RGBA":
+                  raise SystemExit(f"Runtime HeroBody normalization failed: {check.mode}")
+              print(f"HeroBody normalized: {path} {check.size} {check.mode}")
+          PY
 
       - name: Upload runtime art diagnostics
         uses: actions/upload-artifact@v4
